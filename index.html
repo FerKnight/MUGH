@@ -6,8 +6,12 @@
 <title>MUGH — Mobile Uploader for GitHub</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b1120">
+
 <style>
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
@@ -16,24 +20,29 @@
     font-family: system-ui, -apple-system, sans-serif;
     padding: 16px;
   }
+
   .app {
     max-width: 520px;
     margin: 0 auto;
   }
+
   header {
     text-align: center;
     margin-bottom: 18px;
   }
+
   h1 {
     margin: 0;
     font-size: 34px;
     letter-spacing: 4px;
   }
+
   .subtitle {
     margin: 4px 0 0;
     color: #94a3b8;
     font-size: 14px;
   }
+
   .card {
     background: #111827;
     border: 1px solid #1f2937;
@@ -41,13 +50,16 @@
     padding: 18px;
     margin-bottom: 16px;
   }
+
   label {
     display: block;
     font-size: 13px;
     color: #9ca3af;
     margin: 12px 0 6px;
   }
-  input, textarea {
+
+  input,
+  textarea {
     width: 100%;
     background: #0f172a;
     color: #e5e7eb;
@@ -56,10 +68,12 @@
     padding: 12px;
     font-size: 15px;
   }
+
   textarea {
     min-height: 70px;
     resize: vertical;
   }
+
   button {
     width: 100%;
     border: 0;
@@ -70,77 +84,86 @@
     cursor: pointer;
     margin-top: 12px;
   }
+
   .primary {
     background: #22c55e;
     color: #052e16;
   }
+
   .secondary {
     background: #1f2937;
     color: #e5e7eb;
   }
+
   .danger {
     background: #7f1d1d;
     color: #fee2e2;
   }
+
   .hidden {
     display: none !important;
   }
-  .repo {
-    background: #0f172a;
-    border: 1px solid #1f2937;
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 10px;
-  }
-  .repo-name {
-    font-weight: 700;
-    word-break: break-all;
-  }
-  .repo-meta {
-    font-size: 12px;
-    color: #94a3b8;
-    margin-top: 4px;
-  }
-  .path {
-    font-size: 13px;
-    color: #94a3b8;
-    word-break: break-all;
-    margin: 10px 0;
-  }
-  .item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+
+  .repo,
+  .item,
+  .selected-file {
     background: #0f172a;
     border: 1px solid #1f2937;
     border-radius: 10px;
     padding: 10px 12px;
     margin-bottom: 8px;
     font-size: 14px;
+    word-break: break-all;
   }
+
+  .repo {
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .repo-name {
+    font-weight: 700;
+  }
+
+  .repo-meta,
+  .path {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+
+  .path {
+    font-size: 13px;
+    margin: 10px 0;
+  }
+
+  .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
   .item-name {
     word-break: break-all;
   }
+
   .item small {
     display: block;
     color: #6b7280;
   }
+
   .link {
     color: #22c55e;
     font-weight: 700;
     text-decoration: none;
     white-space: nowrap;
   }
+
   .selected-file {
-    background: #0f172a;
-    border: 1px solid #1f2937;
-    border-radius: 10px;
-    padding: 10px 12px;
     margin-top: 10px;
-    font-size: 14px;
-    word-break: break-all;
   }
+
   #notification {
     position: fixed;
     left: 16px;
@@ -154,10 +177,17 @@
     display: none;
     z-index: 20;
   }
-  #notification.success { border-color: #22c55e; }
-  #notification.error { border-color: #ef4444; }
+
+  #notification.success {
+    border-color: #22c55e;
+  }
+
+  #notification.error {
+    border-color: #ef4444;
+  }
 </style>
 </head>
+
 <body>
 
 <div class="app">
@@ -167,39 +197,202 @@
   </header>
 
   <!-- LOGIN -->
-  <script>
+  <section id="loginScreen" class="card">
+    <h2>Iniciar sesión</h2>
+    <p class="subtitle">
+      Usa un Personal Access Token con permisos para crear y editar archivos en tus repositorios.
+    </p>
+
+    <label for="tokenInput">GitHub Personal Access Token</label>
+    <input
+      id="tokenInput"
+      type="password"
+      placeholder="ghp_... o github_pat_..."
+      autocomplete="off"
+    >
+
+    <button
+      id="loginBtn"
+      class="primary"
+      type="button"
+      onclick="connectAccount()"
+    >
+      Conectar cuenta
+    </button>
+
+    <button
+      id="clearTokenBtn"
+      class="danger"
+      type="button"
+      onclick="clearSavedToken()"
+    >
+      Borrar token guardado
+    </button>
+  </section>
+
+  <!-- REPOSITORIOS -->
+  <section id="reposScreen" class="hidden">
+    <div class="card">
+      <div style="display:flex; gap:8px;">
+        <input
+          id="repoSearch"
+          type="text"
+          placeholder="Buscar repositorio..."
+          oninput="filterRepos()"
+        >
+
+        <button
+          class="secondary"
+          type="button"
+          onclick="logout()"
+          style="width:auto; margin-top:0;"
+        >
+          Salir
+        </button>
+      </div>
+
+      <div id="reposList" style="margin-top:14px;"></div>
+    </div>
+  </section>
+
+  <!-- REPOSITORIO -->
+  <section id="repoScreen" class="hidden">
+    <div class="card">
+      <button
+        class="secondary"
+        type="button"
+        onclick="loadRepos()"
+      >
+        ← Volver a repositorios
+      </button>
+
+      <h2
+        id="repoTitle"
+        style="margin-top:16px; word-break:break-all;"
+      ></h2>
+
+      <div id="currentPath" class="path"></div>
+
+      <div id="folderList"></div>
+
+      <hr style="border:0; border-top:1px solid #1f2937; margin:18px 0;">
+
+      <h3>Subir archivo</h3>
+
+      <!-- Selector universal: acepta cualquier formato -->
+      <input
+        id="fileInput"
+        type="file"
+        accept=""
+        multiple
+        style="display:none"
+        onchange="handleSelectedFiles()"
+      >
+
+      <button
+        class="primary"
+        type="button"
+        onclick="document.getElementById('fileInput').click()"
+      >
+        Seleccionar archivo desde el celular
+      </button>
+
+      <div id="selectedFiles"></div>
+
+      <label for="uploadPathInput">Ruta y nombre en el repositorio</label>
+      <input
+        id="uploadPathInput"
+        type="text"
+        placeholder="carpeta/archivo.ext"
+      >
+
+      <label for="commitMessageInput">Mensaje de commit</label>
+      <input
+        id="commitMessageInput"
+        type="text"
+        placeholder="Subir archivo desde MUGH"
+      >
+
+      <button
+        id="uploadBtn"
+        class="primary"
+        type="button"
+        onclick="uploadFiles()"
+      >
+        Confirmar y subir
+      </button>
+    </div>
+  </section>
+</div>
+
+<div id="notification"></div>
+
+<script>
 const API = "https://api.github.com";
 
-const tokenInput = document.getElementById("tokenInput");
 const loginScreen = document.getElementById("loginScreen");
 const reposScreen = document.getElementById("reposScreen");
 const repoScreen = document.getElementById("repoScreen");
+
+const tokenInput = document.getElementById("tokenInput");
 const reposList = document.getElementById("reposList");
+const repoSearch = document.getElementById("repoSearch");
+
+const repoTitle = document.getElementById("repoTitle");
+const currentPath = document.getElementById("currentPath");
+const folderList = document.getElementById("folderList");
+
+const fileInput = document.getElementById("fileInput");
+const selectedFiles = document.getElementById("selectedFiles");
+const uploadPathInput = document.getElementById("uploadPathInput");
+const commitMessageInput = document.getElementById("commitMessageInput");
+const uploadBtn = document.getElementById("uploadBtn");
+
 const notification = document.getElementById("notification");
 
 let token = localStorage.getItem("mugh_token") || "";
+let allRepos = [];
+let selectedRepo = null;
+let currentRepoPath = "";
+let pendingFiles = [];
+
+/* ---------------- Utilidades ---------------- */
 
 function show(screen) {
   [loginScreen, reposScreen, repoScreen].forEach(section => {
     section.classList.add("hidden");
   });
+
   screen.classList.remove("hidden");
 }
 
 function notify(message, type = "") {
-  if (!notification) {
-    alert(message);
-    return;
-  }
-
   notification.textContent = message;
   notification.className = type;
   notification.style.display = "block";
 
-  setTimeout(() => {
+  clearTimeout(notify.timer);
+
+  notify.timer = setTimeout(() => {
     notification.style.display = "none";
   }, 4500);
 }
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function githubHeaders() {
+  return {
+    "Authorization": "Bearer " + token,
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"
+  };
+}
+
+/* ---------------- Login ---------------- */
 
 async function connectAccount() {
   const tokenValue = tokenInput.value.trim();
@@ -231,7 +424,8 @@ async function connectAccount() {
     localStorage.setItem("mugh_token", token);
 
     notify("Conectado como " + user.login, "success");
-    loadRepos();
+
+    await loadRepos();
 
   } catch (error) {
     notify("No se pudo conectar: " + error.message, "error");
@@ -246,6 +440,12 @@ function clearSavedToken() {
   show(loginScreen);
 }
 
+function logout() {
+  clearSavedToken();
+}
+
+/* ---------------- Repositorios ---------------- */
+
 async function loadRepos() {
   if (!token) {
     show(loginScreen);
@@ -256,21 +456,20 @@ async function loadRepos() {
   show(reposScreen);
 
   try {
-    const response = await fetch(API + "/user/repos?per_page=100&sort=updated", {
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
+    const response = await fetch(
+      API + "/user/repos?per_page=100&sort=updated",
+      {
+        headers: githubHeaders()
       }
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "No se pudieron cargar los repositorios.");
     }
 
-    const repos = await response.json();
-    renderRepos(repos);
+    allRepos = await response.json();
+    renderRepos(allRepos);
 
   } catch (error) {
     reposList.innerHTML = "";
@@ -282,50 +481,68 @@ function renderRepos(repos) {
   reposList.innerHTML = "";
 
   if (!repos.length) {
-    reposList.innerHTML = "<p class='subtitle'>No tienes repositorios disponibles.</p>";
+    reposList.innerHTML = "<p class='subtitle'>No se encontraron repositorios.</p>";
     return;
   }
 
   repos.forEach(repo => {
     const div = document.createElement("div");
     div.className = "repo";
+
     div.innerHTML = `
       <div class="repo-name">${repo.full_name}</div>
       <div class="repo-meta">
         ${repo.private ? "Privado" : "Público"} • Rama: ${repo.default_branch}
       </div>
     `;
+
     div.onclick = () => openRepo(repo);
+
     reposList.appendChild(div);
   });
 }
 
-function openRepo(repo) {
-  window.selectedRepo = repo;
-  window.currentRepoPath = "";
+function filterRepos() {
+  const query = repoSearch.value.trim().toLowerCase();
 
-  document.getElementById("repoTitle").textContent = repo.full_name;
-  document.getElementById("currentPath").textContent = "Ruta actual: /";
+  const filtered = allRepos.filter(repo =>
+    repo.full_name.toLowerCase().includes(query)
+  );
+
+  renderRepos(filtered);
+}
+
+/* ---------------- Navegación ---------------- */
+
+async function openRepo(repo) {
+  selectedRepo = repo;
+  currentRepoPath = "";
+
+  repoTitle.textContent = repo.full_name;
+  currentPath.textContent = "Ruta actual: /";
+
+  uploadPathInput.value = "";
+  selectedFiles.innerHTML = "";
+  pendingFiles = [];
 
   show(repoScreen);
-  loadFolder("");
+
+  await loadFolder("");
 }
 
 async function loadFolder(path) {
-  window.currentRepoPath = path;
+  currentRepoPath = path;
 
-  const folderList = document.getElementById("folderList");
+  currentPath.textContent =
+    "Ruta actual: " + (path ? path + "/" : "/");
+
   folderList.innerHTML = "<p class='subtitle'>Cargando carpeta...</p>";
 
   try {
     const response = await fetch(
-      `${API}/repos/${window.selectedRepo.full_name}/contents/${encodeURIComponent(path)}?ref=${window.selectedRepo.default_branch}`,
+      `${API}/repos/${selectedRepo.full_name}/contents/${encodeURIComponent(path)}?ref=${selectedRepo.default_branch}`,
       {
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Accept": "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28"
-        }
+        headers: githubHeaders()
       }
     );
 
@@ -335,24 +552,60 @@ async function loadFolder(path) {
     }
 
     const contents = await response.json();
+
     folderList.innerHTML = "";
 
-    contents.forEach(item => {
-      const div = document.createElement("div");
-      div.className = "item";
+    if (path) {
+      const parentPath = path.split("/").slice(0, -1).join("/");
 
-      if (item.type === "dir") {
-        div.innerHTML = `<div class="item-name">📁 ${item.name}</div>`;
-        div.onclick = () => loadFolder(item.path);
-      } else {
-        div.innerHTML = `
-          <div class="item-name">📄 ${item.name}</div>
-          <a class="link" href="${item.html_url}" target="_blank" rel="noopener">Ver</a>
-        `;
-      }
+      const backItem = document.createElement("div");
+      backItem.className = "item";
+      backItem.innerHTML = `
+        <div class="item-name">📁 ..<small>Carpeta anterior</small></div>
+      `;
+      backItem.onclick = () => loadFolder(parentPath);
+      folderList.appendChild(backItem);
+    }
 
-      folderList.appendChild(div);
-    });
+    contents
+      .sort((a, b) => {
+        if (a.type === b.type) {
+          return a.name.localeCompare(b.name);
+        }
+        return a.type === "dir" ? -1 : 1;
+      })
+      .forEach(item => {
+        const div = document.createElement("div");
+        div.className = "item";
+
+        if (item.type === "dir") {
+          div.innerHTML = `
+            <div class="item-name">📁 ${item.name}<small>Carpeta</small></div>
+          `;
+          div.onclick = () => loadFolder(item.path);
+        } else {
+          div.innerHTML = `
+            <div class="item-name">
+              📄 ${item.name}
+              <small>${formatBytes(item.size)}</small>
+            </div>
+            <a
+              class="link"
+              href="${item.html_url}"
+              target="_blank"
+              rel="noopener"
+            >
+              Ver
+            </a>
+          `;
+        }
+
+        folderList.appendChild(div);
+      });
+
+    if (!folderList.children.length) {
+      folderList.innerHTML = "<p class='subtitle'>Esta carpeta está vacía.</p>";
+    }
 
   } catch (error) {
     folderList.innerHTML = "";
@@ -360,336 +613,9 @@ async function loadFolder(path) {
   }
 }
 
-/* Inicio */
-if (token) {
-  tokenInput.value = token;
-  loadRepos();
-} else {
-  show(loginScreen);
-}
-</script>
+/* ---------------- Selección universal ---------------- */
 
-  <!-- REPOS -->
-  <section id="reposScreen" class="hidden">
-    <div class="card">
-      <div style="display:flex; gap:8px;">
-        <input id="repoSearch" type="text" placeholder="Buscar repositorio...">
-        <button id="logoutBtn" class="secondary" style="width:auto; margin-top:0;">Salir</button>
-      </div>
-
-      <div id="reposList" style="margin-top:14px;"></div>
-    </div>
-  </section>
-
-  <!-- REPO -->
-  <section id="repoScreen" class="hidden">
-    <div class="card">
-      <button id="backToReposBtn" class="secondary">← Volver a repositorios</button>
-
-      <h2 id="repoTitle" style="margin-top:16px; word-break:break-all;"></h2>
-      <div id="currentPath" class="path"></div>
-
-      <div id="folderList"></div>
-
-      <hr style="border:0; border-top:1px solid #1f2937; margin:18px 0;">
-
-      <h3>Subir archivo</h3>
-
-      <!-- Selector universal: acepta cualquier formato -->
-      <input
-        id="fileInput"
-        type="file"
-        accept=""
-        multiple
-        style="display:none"
-      >
-
-      <button id="selectFileBtn" class="primary">
-        Seleccionar archivo desde el celular
-      </button>
-
-      <div id="selectedFiles"></div>
-
-      <label for="uploadPathInput">Ruta y nombre en el repositorio</label>
-      <input id="uploadPathInput" type="text" placeholder="carpeta/archivo.ext">
-
-      <label for="commitMessageInput">Mensaje de commit</label>
-      <input id="commitMessageInput" type="text" placeholder="Subir archivo desde MUGH">
-
-      <button id="uploadBtn" class="primary">Confirmar y subir</button>
-    </div>
-  </section>
-</div>
-
-<div id="notification"></div>
-
-<script>
-const API = "https://api.github.com";
-
-const loginScreen = document.getElementById("loginScreen");
-const reposScreen = document.getElementById("reposScreen");
-const repoScreen = document.getElementById("repoScreen");
-
-const tokenInput = document.getElementById("tokenInput");
-const loginBtn = document.getElementById("loginBtn");
-const clearTokenBtn = document.getElementById("clearTokenBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-
-const repoSearch = document.getElementById("repoSearch");
-const reposList = document.getElementById("reposList");
-
-const repoTitle = document.getElementById("repoTitle");
-const currentPath = document.getElementById("currentPath");
-const folderList = document.getElementById("folderList");
-const backToReposBtn = document.getElementById("backToReposBtn");
-
-const fileInput = document.getElementById("fileInput");
-const selectFileBtn = document.getElementById("selectFileBtn");
-const selectedFiles = document.getElementById("selectedFiles");
-const uploadPathInput = document.getElementById("uploadPathInput");
-const commitMessageInput = document.getElementById("commitMessageInput");
-const uploadBtn = document.getElementById("uploadBtn");
-
-const notification = document.getElementById("notification");
-
-let token = localStorage.getItem("mugh_token") || "";
-let selectedRepo = null;
-let currentRepoPath = "";
-let pendingFiles = [];
-
-/* ---------- Utilidades ---------- */
-
-function show(screen) {
-  loginScreen.classList.add("hidden");
-  reposScreen.classList.add("hidden");
-  repoScreen.classList.add("hidden");
-  screen.classList.remove("hidden");
-}
-
-function notify(message, type = "") {
-  notification.textContent = message;
-  notification.className = type;
-  notification.style.display = "block";
-  clearTimeout(notify.timer);
-  notify.timer = setTimeout(() => {
-    notification.style.display = "none";
-  }, 4000);
-}
-
-function formatBytes(bytes) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
-
-function githubHeaders() {
-  return {
-    "Authorization": "Bearer " + token,
-    "Accept": "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28"
-  };
-}
-
-async function githubRequest(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...githubHeaders(),
-      ...(options.headers || {})
-    }
-  });
-
-  if (!response.ok) {
-    let message = "Error de GitHub: " + response.status;
-    try {
-      const data = await response.json();
-      if (data.message) message = data.message;
-    } catch (_) {}
-    throw new Error(message);
-  }
-
-  return response.json();
-}
-
-/* ---------- Login ---------- */
-
-loginBtn.addEventListener("click", async () => {
-  token = tokenInput.value.trim();
-
-  if (!token) {
-    notify("Ingresa tu Personal Access Token.", "error");
-    return;
-  }
-
-  try {
-    const user = await githubRequest(API + "/user");
-    localStorage.setItem("mugh_token", token);
-    notify("Conectado como " + user.login, "success");
-    loadRepos();
-  } catch (error) {
-    notify("Token inválido o sin permisos: " + error.message, "error");
-  }
-});
-
-clearTokenBtn.addEventListener("click", () => {
-  localStorage.removeItem("mugh_token");
-  token = "";
-  tokenInput.value = "";
-  notify("Token borrado del navegador.");
-});
-
-logoutBtn.addEventListener("click", () => {
-  token = "";
-  localStorage.removeItem("mugh_token");
-  tokenInput.value = "";
-  show(loginScreen);
-});
-
-/* ---------- Repositorios ---------- */
-
-async function loadRepos() {
-  if (!token) {
-    show(loginScreen);
-    return;
-  }
-
-  reposList.innerHTML = "<p class='subtitle'>Cargando repositorios...</p>";
-  show(reposScreen);
-
-  try {
-    const repos = await githubRequest(API + "/user/repos?per_page=100&sort=updated");
-    renderRepos(repos);
-  } catch (error) {
-    reposList.innerHTML = "";
-    notify("No se pudieron cargar los repos: " + error.message, "error");
-  }
-}
-
-function renderRepos(repos) {
-  const query = repoSearch.value.trim().toLowerCase();
-  reposList.innerHTML = "";
-
-  const filtered = repos.filter(repo =>
-    repo.full_name.toLowerCase().includes(query)
-  );
-
-  if (!filtered.length) {
-    reposList.innerHTML = "<p class='subtitle'>No se encontraron repositorios.</p>";
-    return;
-  }
-
-  filtered.forEach(repo => {
-    const div = document.createElement("div");
-    div.className = "repo";
-
-    div.innerHTML = `
-      <div class="repo-name">${repo.full_name}</div>
-      <div class="repo-meta">
-        ${repo.private ? "Privado" : "Público"} • Rama principal: ${repo.default_branch}
-      </div>
-    `;
-
-    div.addEventListener("click", () => openRepo(repo));
-    reposList.appendChild(div);
-  });
-}
-
-repoSearch.addEventListener("input", () => {
-  const buttons = [...reposList.children];
-  const query = repoSearch.value.toLowerCase();
-
-  buttons.forEach(button => {
-    const name = button.querySelector(".repo-name").textContent.toLowerCase();
-    button.style.display = name.includes(query) ? "block" : "none";
-  });
-});
-
-/* ---------- Navegación del repo ---------- */
-
-backToReposBtn.addEventListener("click", loadRepos);
-
-async function openRepo(repo) {
-  selectedRepo = repo;
-  currentRepoPath = "";
-
-  repoTitle.textContent = repo.full_name;
-  uploadPathInput.value = "";
-  selectedFiles.innerHTML = "";
-  pendingFiles = [];
-
-  show(repoScreen);
-  await loadFolder("");
-}
-
-async function loadFolder(path) {
-  currentRepoPath = path;
-
-  const safePath = path ? path + "/" : "";
-  currentPath.textContent = "Ruta actual: " + (safePath || "/");
-
-  folderList.innerHTML = "<p class='subtitle'>Cargando carpeta...</p>";
-
-  try {
-    const contents = await githubRequest(
-      `${API}/repos/${selectedRepo.full_name}/contents/${encodeURIComponent(path)}?ref=${selectedRepo.default_branch}`
-    );
-
-    folderList.innerHTML = "";
-
-    if (path) {
-      const parent = path.split("/").slice(0, -1).join("/");
-      addFolderItem("..", parent, "Carpeta anterior");
-    }
-
-    contents
-      .sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name);
-        return a.type === "dir" ? -1 : 1;
-      })
-      .forEach(item => {
-        if (item.type === "dir") {
-          addFolderItem(item.name, item.path, "Carpeta");
-        } else {
-          addFileItem(item);
-        }
-      });
-
-    if (!folderList.children.length) {
-      folderList.innerHTML = "<p class='subtitle'>Esta carpeta está vacía.</p>";
-    }
-  } catch (error) {
-    folderList.innerHTML = "";
-    notify("No se pudo abrir la carpeta: " + error.message, "error");
-  }
-}
-
-function addFolderItem(name, path, subtitle) {
-  const div = document.createElement("div");
-  div.className = "item";
-  div.innerHTML = `
-    <div class="item-name">📁 ${name}<small>${subtitle}</small></div>
-  `;
-  div.addEventListener("click", () => loadFolder(path));
-  folderList.appendChild(div);
-}
-
-function addFileItem(item) {
-  const div = document.createElement("div");
-  div.className = "item";
-  div.innerHTML = `
-    <div class="item-name">📄 ${item.name}<small>${formatBytes(item.size)}</small></div>
-    <a class="link" href="${item.html_url}" target="_blank" rel="noopener">Ver</a>
-  `;
-  folderList.appendChild(div);
-}
-
-/* ---------- Selección universal de archivos ---------- */
-
-selectFileBtn.addEventListener("click", () => {
-  fileInput.click();
-});
-
-fileInput.addEventListener("change", () => {
+function handleSelectedFiles() {
   pendingFiles = Array.from(fileInput.files || []);
   selectedFiles.innerHTML = "";
 
@@ -698,10 +624,14 @@ fileInput.addEventListener("change", () => {
   pendingFiles.forEach(file => {
     const div = document.createElement("div");
     div.className = "selected-file";
+
     div.innerHTML = `
       <strong>${file.name}</strong><br>
-      <span class="subtitle">${formatBytes(file.size)} • ${file.type || "tipo desconocido"}</span>
+      <span class="subtitle">
+        ${formatBytes(file.size)} • ${file.type || "Tipo desconocido"}
+      </span>
     `;
+
     selectedFiles.appendChild(div);
   });
 
@@ -718,9 +648,9 @@ fileInput.addEventListener("change", () => {
   }
 
   fileInput.value = "";
-});
+}
 
-/* ---------- Subida a GitHub ---------- */
+/* ---------------- Subida ---------------- */
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -731,12 +661,15 @@ function fileToBase64(file) {
       resolve(result.split(",")[1]);
     };
 
-    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    reader.onerror = () => {
+      reject(new Error("No se pudo leer el archivo."));
+    };
+
     reader.readAsDataURL(file);
   });
 }
 
-uploadBtn.addEventListener("click", async () => {
+async function uploadFiles() {
   if (!selectedRepo) {
     notify("Selecciona un repositorio.", "error");
     return;
@@ -747,7 +680,8 @@ uploadBtn.addEventListener("click", async () => {
     return;
   }
 
-  const message = commitMessageInput.value.trim() || "Subir archivo desde MUGH";
+  const message =
+    commitMessageInput.value.trim() || "Subir archivo desde MUGH";
 
   uploadBtn.disabled = true;
   uploadBtn.textContent = "Subiendo...";
@@ -767,20 +701,31 @@ uploadBtn.addEventListener("click", async () => {
       const content = await fileToBase64(file);
 
       let sha;
+
       try {
-        const existing = await githubRequest(
-          `${API}/repos/${selectedRepo.full_name}/contents/${encodeURIComponent(path)}?ref=${selectedRepo.default_branch}`
+        const existingResponse = await fetch(
+          `${API}/repos/${selectedRepo.full_name}/contents/${encodeURIComponent(path)}?ref=${selectedRepo.default_branch}`,
+          {
+            headers: githubHeaders()
+          }
         );
-        sha = existing.sha;
+
+        if (existingResponse.ok) {
+          const existing = await existingResponse.json();
+          sha = existing.sha;
+        }
       } catch (_) {
         sha = undefined;
       }
 
-      await githubRequest(
+      const uploadResponse = await fetch(
         `${API}/repos/${selectedRepo.full_name}/contents/${encodeURIComponent(path)}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            ...githubHeaders(),
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify({
             message,
             content,
@@ -789,6 +734,13 @@ uploadBtn.addEventListener("click", async () => {
           })
         }
       );
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || "GitHub rechazó la subida del archivo."
+        );
+      }
     }
 
     notify("Archivo(s) subido(s) correctamente.", "success");
@@ -798,15 +750,16 @@ uploadBtn.addEventListener("click", async () => {
     commitMessageInput.value = "";
 
     await loadFolder(currentRepoPath);
+
   } catch (error) {
     notify("Error al subir: " + error.message, "error");
   } finally {
     uploadBtn.disabled = false;
     uploadBtn.textContent = "Confirmar y subir";
   }
-});
+}
 
-/* ---------- Inicio ---------- */
+/* ---------------- Inicio ---------------- */
 
 if (token) {
   tokenInput.value = token;
