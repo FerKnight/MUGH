@@ -1,12 +1,12 @@
 {
-  "name": "MUGH",
+  "name": "MUGH — Mobile Uploader for GitHub",
   "short_name": "MUGH",
-  "description": "Selector y gestor de archivos de cualquier tipo",
+  "description": "Sube archivos de cualquier tipo a tus repositorios de GitHub desde el celular",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0b1120",
-  "theme_color": "#111827",
+  "theme_color": "#0b1120",
   "icons": [
     {
       "src": "icon-192.png",
