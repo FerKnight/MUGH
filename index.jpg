@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MUGH - Mobile Uploader for GitHub</title>
+  
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MUGH">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gh: {
+              bg: '#0d1117',
+              card: '#161b22',
+              border: '#30363d',
+              input: '#21262d',
+              btn: '#21262d',
+              btnHover: '#30363d',
+              green: '#238636',
+              greenHover: '#2ea043',
+              red: '#da3633',
+              redHover: '#f85149',
+              text: '#c9d1d9',
+              textMuted: '#8b949e',
+              accent: '#58a6ff'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d1117;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 3px;
+    }
+    .tap-highlight-transparent {
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="bg-gh-bg text-gh-text antialiased selection:bg-gh-accent selection:text-white pb-20 min-h-screen flex flex-col font-sans tap-highlight-transparent">
+
+  <header class="sticky top-0 z-30 bg-gh-card/95 backdrop-blur border-b border-gh-border px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <div class="bg-gh-border p-1.5 rounded-lg text-gh-accent">
+        <i data-lucide="github" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base leading-tight tracking-wide text-white">MUGH</h1>
+        <p class="text-[10px] text-gh-textMuted uppercase tracking-wider font-semibold">Mobile GitHub Client</p>
+      </div>
+    </div>
+
+    <div id="user-profile" class="flex items-center space-x-2">
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 pt-4 pb-6">
+
+    <section id="auth-section" class="hidden flex flex-col items-center justify-center min-h-[70vh] py-8">
+      <div class="w-full max-w-sm bg-gh-card border border-gh-border rounded-2xl p-6 shadow-xl text-center space-y-5">
+        <div class="w-16 h-16 bg-gh-input border border-gh-border rounded-full flex items-center justify-center mx-auto text-gh-accent">
+          <i data-lucide="key-round" class="w-8 h-8"></i>
+        </div>
+        
+        <div>
+          <h2 class="text-xl font-bold text-white">Inicia Sesión con tu PAT</h2>
+          <p class="text-xs text-gh-textMuted mt-1">Usa un Personal Access Token de GitHub con permisos de <code class="text-gh-accent bg-gh-input px-1 rounded">repo</code>.</p>
+        </div>
+
+        <form id="login-form" class="space-y-4 text-left">
+          <div>
+            <label for="pat-input" class="block text-xs font-medium text-gh-textMuted mb-1">GitHub Access Token (Classic o Fine-Grained)</label>
+            <input type="password" id="pat-input" required placeholder="ghp_xxxxxxxxxxxx" class="w-full bg-gh-input border border-gh-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-gh-accent focus:ring-1 focus:ring-gh-accent transition">
+          </div>
+
+          <button type="submit" class="w-full bg-gh-green hover:bg-gh-greenHover text-white font-medium py-2.5 rounded-xl transition flex items-center justify-center space-x-2 text-sm shadow-md">
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            <span>Conectar Cuenta</span>
+          </button>
+        </form>
+
+        <p class="text-[11px] text-gh-textMuted">
+          El token se almacena únicamente de forma local en tu navegador (<code class="text-gh-textMuted">localStorage</code>).
+        </p>
+      </div>
+    </section>
+
+    <section id="dashboard-section" class="hidden space-y-4">
+
+      <div class="flex border-b border-gh-border text-sm font-medium">
+        <button id="tab-my-repos" class="flex-1 py-2.5 text-center border-b-2 border-gh-accent text-gh-accent font-semibold flex items-center justify-center space-x-2">
+          <i data-lucide="folder-git-2" class="w-4 h-4"></i>
+          <span>Mis Repos</span>
+        </button>
+        <button id="tab-search-repos" class="flex-1 py-2.5 text-center border-b-2 border-transparent text-gh-textMuted hover:text-gh-text flex items-center justify-center space-x-2">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <span>Buscar Repos</span>
+        </button>
+      </div>
+
+      <div id="view-my-repos" class="space-y-3">
+        <div class="flex items-center space-x-2">
+          <input type="text" id="filter-my-repos" placeholder="Filtrar mis repositorios..." class="flex-1 bg-gh-input border border-gh-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-gh-accent">
+          <select id="select-repo-type" class="bg-gh-input border border-gh-border rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-gh-accent">
+            <option value="all">Todos</option>
+            <option value="owner">Propios</option>
+            <option value="public">Públicos</option>
+            <option value="private">Privados</option>
+          </select>
+        </div>
+
+        <div id="my-repos-list" class="space-y-2">
+        </div>
+      </div>
+
+      <div id="view-search-repos" class="hidden space-y-3">
+        <form id="search-form" class="flex space-x-2">
+          <input type="text" id="search-query" placeholder="Nombre o creador (ej: facebook/react)..." required class="flex-1 bg-gh-input border border-gh-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-gh-accent">
+          <button type="submit" class="bg-gh-btn hover:bg-gh-btnHover border border-gh-border px-3 py-2 rounded-xl text-xs text-white flex items-center space-x-1">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+            <span>Buscar</span>
+          </button>
+        </form>
+
+        <div id="search-repos-list" class="space-y-2">
+          <div class="text-center py-8 text-xs text-gh-textMuted">
+            Escribe un nombre de usuario o proyecto para buscar repositorios públicos.
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <section id="explorer-section" class="hidden space-y-4">
+      
+      <div class="bg-gh-card border border-gh-border rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <button id="btn-back-to-repos" class="text-xs text-gh-accent hover:underline flex items-center space-x-1">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            <span>Volver a repositorios</span>
+          </button>
+          
+          <span id="repo-visibility-badge" class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-gh-input border border-gh-border text-gh-textMuted">
+            Public
+          </span>
+        </div>
+
+        <div>
+          <h2 id="current-repo-fullname" class="text-base font-bold text-white break-all flex items-center space-x-1.5">
+          </h2>
+          <p id="current-repo-desc" class="text-xs text-gh-textMuted mt-0.5 line-clamp-2"></p>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-gh-border gap-2">
+          <div class="flex items-center space-x-1.5 bg-gh-input border border-gh-border rounded-xl px-2.5 py-1.5 text-xs text-white">
+            <i data-lucide="git-branch" class="w-3.5 h-3.5 text-gh-textMuted"></i>
+            <select id="branch-select" class="bg-transparent focus:outline-none text-xs font-medium cursor-pointer">
+            </select>
+          </div>
+
+          <button id="btn-open-upload-modal" class="bg-gh-green hover:bg-gh-greenHover text-white px-3 py-1.5 rounded-xl text-xs font-medium flex items-center space-x-1.5 shadow">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+            <span>Subir Archivo</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="breadcrumbs" class="flex items-center flex-wrap gap-1 text-xs bg-gh-input/50 border border-gh-border/60 rounded-xl px-3 py-2 text-gh-textMuted overflow-x-auto">
+      </div>
+
+      <div id="file-explorer-list" class="bg-gh-card border border-gh-border rounded-2xl overflow-hidden divide-y divide-gh-border">
+      </div>
+
+    </section>
+
+    <section id="viewer-section" class="hidden space-y-4">
+      <div class="bg-gh-card border border-gh-border rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <button id="btn-back-to-explorer" class="text-xs text-gh-accent hover:underline flex items-center space-x-1">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            <span>Volver a la carpeta</span>
+          </button>
+
+          <div class="flex items-center space-x-2">
+            <button id="btn-delete-file" class="bg-gh-red/10 text-gh-red hover:bg-gh-red/20 border border-gh-red/30 px-2.5 py-1 rounded-xl text-xs font-medium flex items-center space-x-1">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>Eliminar</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <i data-lucide="file-text" class="w-5 h-5 text-gh-accent"></i>
+          <div>
+            <h3 id="view-file-name" class="text-sm font-bold text-white break-all">filename.ext</h3>
+            <p id="view-file-size" class="text-[11px] text-gh-textMuted"></p>
+          </div>
+        </div>
+      </div>
+
+      <div id="file-content-container" class="bg-gh-card border border-gh-border rounded-2xl p-3 overflow-hidden min-h-[250px] text-xs font-mono">
+      </div>
+    </section>
+
+  </main>
+
+  <div id="modal-upload" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-gh-card border border-gh-border w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-gh-border pb-3">
+        <h3 class="font-bold text-base text-white flex items-center space-x-2">
+          <i data-lucide="upload" class="w-4 h-4 text-gh-accent"></i>
+          <span>Subir archivo al repositorio</span>
+        </h3>
+        <button id="btn-close-upload-modal" class="text-gh-textMuted hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="upload-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gh-textMuted mb-1">Seleccionar archivo desde el celular</label>
+          <input type="file" id="upload-file-input" required class="w-full text-xs text-gh-textMuted file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gh-input file:text-white hover:file:bg-gh-btnHover">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gh-textMuted mb-1">Ruta en el repositorio (Path)</label>
+          <input type="text" id="upload-file-path" placeholder="ej: src/imagenes/foto.png o archivo.zip" class="w-full bg-gh-input border border-gh-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-gh-accent">
+          <p class="text-[10px] text-gh-textMuted mt-1">Puedes modificar la ruta o nombre del archivo dentro del repositorio.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gh-textMuted mb-1">Mensaje de Commit</label>
+          <input type="text" id="upload-commit-msg" placeholder="Subiendo archivo desde MUGH" required class="w-full bg-gh-input border border-gh-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-gh-accent">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" id="btn-cancel-upload" class="px-4 py-2 bg-gh-btn hover:bg-gh-btnHover border border-gh-border text-white text-xs rounded-xl font-medium">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-confirm-upload" class="px-4 py-2 bg-gh-green hover:bg-gh-greenHover text-white text-xs rounded-xl font-medium flex items-center space-x-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Confirmar y Subir</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-gh-card border border-gh-border px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 text-xs text-white transition-all transform translate-y-20 opacity-0 pointer-events-none max-w-xs w-full">
+    <i id="toast-icon" data-lucide="info" class="w-4 h-4 text-gh-accent flex-shrink-0"></i>
+    <span id="toast-msg" class="flex-1">Notificación</span>
+  </div>
+
+  <script>
+    const state = {
+      pat: localStorage.getItem('mugh_pat') || '',
+      user: null,
+      currentRepoOwner: '',
+      currentRepoName: '',
+      currentBranch: 'main',
+      currentPath: '',
+      currentFileSha: '',
+      branches: []
+    };
+
+    const el = {
+      authSection: document.getElementById('auth-section'),
+      dashboardSection: document.getElementById('dashboard-section'),
+      explorerSection: document.getElementById('explorer-section'),
+      viewerSection: document.getElementById('viewer-section'),
+      userProfile: document.getElementById('user-profile'),
+      loginForm: document.getElementById('login-form'),
+      patInput: document.getElementById('pat-input'),
+      myReposList: document.getElementById('my-repos-list'),
+      searchReposList: document.getElementById('search-repos-list'),
+      tabMyRepos: document.getElementById('tab-my-repos'),
+      tabSearchRepos: document.getElementById('tab-search-repos'),
+      viewMyRepos: document.getElementById('view-my-repos'),
+      viewSearchRepos: document.getElementById('view-search-repos'),
+      filterMyRepos: document.getElementById('filter-my-repos'),
+      selectRepoType: document.getElementById('select-repo-type'),
+      searchForm: document.getElementById('search-form'),
+      searchQuery: document.getElementById('search-query'),
+      btnBackToRepos: document.getElementById('btn-back-to-repos'),
+      currentRepoFullname: document.getElementById('current-repo-fullname'),
+      currentRepoDesc: document.getElementById('current-repo-desc'),
+      repoVisibilityBadge: document.getElementById('repo-visibility-badge'),
+      branchSelect: document.getElementById('branch-select'),
+      breadcrumbs: document.getElementById('breadcrumbs'),
+      fileExplorerList: document.getElementById('file-explorer-list'),
+      btnOpenUploadModal: document.getElementById('btn-open-upload-modal'),
+      modalUpload: document.getElementById('modal-upload'),
+      uploadForm: document.getElementById('upload-form'),
+      uploadFileInput: document.getElementById('upload-file-input'),
+      uploadFilePath: document.getElementById('upload-file-path'),
+      uploadCommitMsg: document.getElementById('upload-commit-msg'),
+      btnCloseUploadModal: document.getElementById('btn-close-upload-modal'),
+      btnCancelUpload: document.getElementById('btn-cancel-upload'),
+      btnBackToExplorer: document.getElementById('btn-back-to-explorer'),
+      viewFileName: document.getElementById('view-file-name'),
+      viewFileSize: document.getElementById('view-file-size'),
+      fileContentContainer: document.getElementById('file-content-container'),
+      btnDeleteFile: document.getElementById('btn-delete-file'),
+      toast: document.getElementById('toast'),
+      toastMsg: document.getElementById('toast-msg'),
+      toastIcon: document.getElementById('toast-icon')
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initApp();
+    });
+
+    async function initApp() {
+      if (state.pat) {
+        const valid = await validatePAT();
+        if (valid) {
+          showDashboard();
+        } else {
+          showAuth();
+        }
+      } else {
+        showAuth();
+      }
+      setupEventListeners();
+    }
+
+    async function ghFetch(endpoint, options = {}) {
+      const headers = {
+        'Authorization': `Bearer ${state.pat}`,
+        'Accept': 'application/vnd.github.v3+json',
+        ...options.headers
+      };
+      const response = await fetch(`https://api.github.com${endpoint}`, { ...options, headers });
+      return response;
+    }
+
+    async function validatePAT() {
+      try {
+        const res = await ghFetch('/user');
+        if (res.ok) {
+          state.user = await res.json();
+          renderUserProfile();
+          return true;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      return false;
+    }
+
+    function renderUserProfile() {
+      if (!state.user) return;
+      el.userProfile.innerHTML = `
+        <img src="${state.user.avatar_url}" alt="${state.user.login}" class="w-7 h-7 rounded-full border border-gh-border">
+        <span class="text-xs font-semibold text-white hidden sm:inline">${state.user.login}</span>
+        <button id="btn-logout" class="text-gh-textMuted hover:text-gh-red p-1" title="Cerrar sesión">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      `;
+      lucide.createIcons();
+      document.getElementById('btn-logout')?.addEventListener('click', logout);
+    }
+
+    function logout() {
+      localStorage.removeItem('mugh_pat');
+      state.pat = '';
+      state.user = null;
+      showAuth();
+      showToast('Sesión cerrada correctamente', 'info');
+    }
+
+    function showAuth() {
+      el.authSection.classList.remove('hidden');
+      el.dashboardSection.classList.add('hidden');
+      el.explorerSection.classList.add('hidden');
+      el.viewerSection.classList.add('hidden');
+      el.userProfile.innerHTML = '';
+    }
+
+    function showDashboard() {
+      el.authSection.classList.add('hidden');
+      el
