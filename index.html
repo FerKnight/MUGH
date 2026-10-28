@@ -167,18 +167,207 @@
   </header>
 
   <!-- LOGIN -->
-  <section id="loginScreen" class="card">
-    <h2>Iniciar sesión</h2>
-    <p class="subtitle">
-      Usa un Personal Access Token con permiso para crear y editar archivos en tus repositorios.
-    </p>
+  <script>
+const API = "https://api.github.com";
 
-    <label for="tokenInput">GitHub Personal Access Token</label>
-    <input id="tokenInput" type="password" placeholder="ghp_... o github_pat_..." autocomplete="off">
+const tokenInput = document.getElementById("tokenInput");
+const loginScreen = document.getElementById("loginScreen");
+const reposScreen = document.getElementById("reposScreen");
+const repoScreen = document.getElementById("repoScreen");
+const reposList = document.getElementById("reposList");
+const notification = document.getElementById("notification");
 
-    <button id="loginBtn" class="primary">Conectar cuenta</button>
-    <button id="clearTokenBtn" class="danger">Borrar token guardado</button>
-  </section>
+let token = localStorage.getItem("mugh_token") || "";
+
+function show(screen) {
+  [loginScreen, reposScreen, repoScreen].forEach(section => {
+    section.classList.add("hidden");
+  });
+  screen.classList.remove("hidden");
+}
+
+function notify(message, type = "") {
+  if (!notification) {
+    alert(message);
+    return;
+  }
+
+  notification.textContent = message;
+  notification.className = type;
+  notification.style.display = "block";
+
+  setTimeout(() => {
+    notification.style.display = "none";
+  }, 4500);
+}
+
+async function connectAccount() {
+  const tokenValue = tokenInput.value.trim();
+
+  if (!tokenValue) {
+    notify("Ingresa tu Personal Access Token.", "error");
+    return;
+  }
+
+  notify("Verificando token...");
+
+  try {
+    const response = await fetch(API + "/user", {
+      headers: {
+        "Authorization": "Bearer " + tokenValue,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Token inválido o sin permisos.");
+    }
+
+    const user = await response.json();
+
+    token = tokenValue;
+    localStorage.setItem("mugh_token", token);
+
+    notify("Conectado como " + user.login, "success");
+    loadRepos();
+
+  } catch (error) {
+    notify("No se pudo conectar: " + error.message, "error");
+  }
+}
+
+function clearSavedToken() {
+  localStorage.removeItem("mugh_token");
+  token = "";
+  tokenInput.value = "";
+  notify("Token borrado.");
+  show(loginScreen);
+}
+
+async function loadRepos() {
+  if (!token) {
+    show(loginScreen);
+    return;
+  }
+
+  reposList.innerHTML = "<p class='subtitle'>Cargando repositorios...</p>";
+  show(reposScreen);
+
+  try {
+    const response = await fetch(API + "/user/repos?per_page=100&sort=updated", {
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "No se pudieron cargar los repositorios.");
+    }
+
+    const repos = await response.json();
+    renderRepos(repos);
+
+  } catch (error) {
+    reposList.innerHTML = "";
+    notify(error.message, "error");
+  }
+}
+
+function renderRepos(repos) {
+  reposList.innerHTML = "";
+
+  if (!repos.length) {
+    reposList.innerHTML = "<p class='subtitle'>No tienes repositorios disponibles.</p>";
+    return;
+  }
+
+  repos.forEach(repo => {
+    const div = document.createElement("div");
+    div.className = "repo";
+    div.innerHTML = `
+      <div class="repo-name">${repo.full_name}</div>
+      <div class="repo-meta">
+        ${repo.private ? "Privado" : "Público"} • Rama: ${repo.default_branch}
+      </div>
+    `;
+    div.onclick = () => openRepo(repo);
+    reposList.appendChild(div);
+  });
+}
+
+function openRepo(repo) {
+  window.selectedRepo = repo;
+  window.currentRepoPath = "";
+
+  document.getElementById("repoTitle").textContent = repo.full_name;
+  document.getElementById("currentPath").textContent = "Ruta actual: /";
+
+  show(repoScreen);
+  loadFolder("");
+}
+
+async function loadFolder(path) {
+  window.currentRepoPath = path;
+
+  const folderList = document.getElementById("folderList");
+  folderList.innerHTML = "<p class='subtitle'>Cargando carpeta...</p>";
+
+  try {
+    const response = await fetch(
+      `${API}/repos/${window.selectedRepo.full_name}/contents/${encodeURIComponent(path)}?ref=${window.selectedRepo.default_branch}`,
+      {
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Accept": "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "No se pudo abrir la carpeta.");
+    }
+
+    const contents = await response.json();
+    folderList.innerHTML = "";
+
+    contents.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "item";
+
+      if (item.type === "dir") {
+        div.innerHTML = `<div class="item-name">📁 ${item.name}</div>`;
+        div.onclick = () => loadFolder(item.path);
+      } else {
+        div.innerHTML = `
+          <div class="item-name">📄 ${item.name}</div>
+          <a class="link" href="${item.html_url}" target="_blank" rel="noopener">Ver</a>
+        `;
+      }
+
+      folderList.appendChild(div);
+    });
+
+  } catch (error) {
+    folderList.innerHTML = "";
+    notify(error.message, "error");
+  }
+}
+
+/* Inicio */
+if (token) {
+  tokenInput.value = token;
+  loadRepos();
+} else {
+  show(loginScreen);
+}
+</script>
 
   <!-- REPOS -->
   <section id="reposScreen" class="hidden">
