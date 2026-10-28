@@ -1,0 +1,220 @@
+
+:root {
+  color-scheme: dark;
+  --bg: #101114;
+  --panel: #191b21;
+  --border: #2b2e38;
+  --text: #f1f3f9;
+  --muted: #a1a6b5;
+  --accent: #3978ff;
+  --danger: #e34d5b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, sans-serif;
+}
+
+button, input, textarea { font: inherit; }
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+button {
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.secondary { background: #292c35; }
+button.danger { background: #792b35; }
+
+input, textarea {
+  width: 100%;
+  color: var(--text);
+  background: #111319;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 11px 12px;
+  outline: none;
+}
+
+input:focus, textarea:focus { border-color: var(--accent); }
+
+a { color: #83aaff; }
+
+.topbar {
+  min-height: 60px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .5px;
+}
+
+.brand-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.muted, .hint { color: var(--muted); }
+.hint { font-size: 12px; }
+
+main { max-width: 1500px; margin: 0 auto; padding: 22px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.login {
+  max-width: 440px;
+  margin: 7vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login h1 { font-size: 27px; margin: 0; }
+.login p { margin: 0; }
+
+.logo {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  background: #263a69;
+  border-radius: 15px;
+  font-weight: 900;
+  font-size: 24px;
+}
+
+.toolbar, .actions, .editor-head, .editor-footer, .section-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.toolbar { margin-bottom: 16px; }
+.toolbar input { flex: 1; min-width: 120px; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 290px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+h2 { font-size: 17px; margin: 0 0 14px; }
+
+.section-head {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-head h2 { margin-bottom: 3px; }
+.actions { flex-wrap: wrap; justify-content: flex-end; }
+
+.repo-list, .file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.repo-item, .file-item {
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #15171c;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.repo-item:hover, .file-item:hover { border-color: var(--accent); }
+.repo-item strong { display: block; }
+.repo-item small { color: var(--muted); }
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.file-item .kind { color: var(--muted); font-size: 12px; }
+
+#editor {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+}
+
+.editor-head { justify-content: space-between; margin-bottom: 10px; }
+
+#fileContent {
+  min-height: 320px;
+  resize: vertical;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  tab-size: 2;
+}
+
+.editor-footer { margin-top: 10px; flex-wrap: wrap; }
+.editor-footer input { flex: 1; min-width: 150px; }
+
+#status {
+  position: sticky;
+  bottom: 12px;
+  margin: 12px auto 0;
+  width: fit-content;
+  max-width: 100%;
+  padding: 9px 14px;
+  border-radius: 9px;
+  background: #292c35;
+  overflow-wrap: anywhere;
+}
+
+#status:empty { display: none; }
+[hidden] { display: none !important; }
+
+@media (max-width: 800px) {
+  main { padding: 12px; }
+  .topbar { padding: 12px; }
+  .layout { grid-template-columns: 1fr; }
+  .repo-panel { max-height: 300px; overflow-y: auto; }
+  .section-head { align-items: flex-start; flex-direction: column; }
+  .actions { justify-content: flex-start; }
+  .toolbar { flex-wrap: wrap; }
+  .toolbar input { flex-basis: 100%; }
+  #fileContent { min-height: 250px; }
+}
+
+@media (max-width: 420px) {
+  .login { margin: 3vh auto; padding: 16px; }
+  button { padding: 10px; }
+  .file-item { align-items: flex-start; }
+}
