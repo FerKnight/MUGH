@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GitPocket - GitHub Mobile Manager</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: '#0d1117',
+                            card: '#161b22',
+                            border: '#30363d',
+                            header: '#161b22',
+                            input: '#010409',
+                            btn: '#21262d',
+                            btnHover: '#30363d',
+                            primary: '#238636',
+                            primaryHover: '#2ea043',
+                            accent: '#58a6ff',
+                            text: '#c9d1d9',
+                            muted: '#8b949e',
+                            danger: '#f85149'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Manifest PWA dinámico -->
+    <link rel="manifest" id="manifest-placeholder">
+
+    <style>
+        /* Estilos optimizados para móviles y toques */
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .selectable {
+            user-select: text;
+        }
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 3px;
+        }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-gh-bg text-gh-text min-h-screen flex flex-col justify-between pb-20">
+
+    <!-- Header / Barra de Estado -->
+    <header class="sticky top-0 z-40 bg-gh-header/90 backdrop-blur-md border-b border-gh-border px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <i data-lucide="github" class="w-7 h-7 text-white"></i>
+            <span class="font-bold text-lg tracking-wide text-white">GitPocket</span>
+        </div>
+        
+        <div id="user-profile-badge" class="hidden flex items-center space-x-2">
+            <img id="user-avatar" src="" alt="Avatar" class="w-8 h-8 rounded-full border border-gh-border">
+            <button onclick="logout()" class="p-2 text-gh-muted hover:text-gh-danger transition-colors" title="Cerrar Sesión">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-grow p-4 max-w-4xl mx-auto w-full">
+
+        <!-- VISTA 1: AUTENTICACIÓN (LOGIN) -->
+        <section id="view-login" class="flex flex-col items-center justify-center min-h-[70vh] space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex p-4 bg-gh-card border border-gh-border rounded-full mb-2">
+                    <i data-lucide="key-round" class="w-10 h-10 text-gh-accent"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Acceso con GitHub PAT</h1>
+                <p class="text-sm text-gh-muted max-w-xs mx-auto">Ingresa tu Personal Access Token con permisos de <code class="bg-gh-bg px-1 py-0.5 rounded text-gh-accent">repo</code> para empezar.</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="w-full max-w-sm bg-gh-card p-6 rounded-xl border border-gh-border space-y-4 shadow-xl">
+                <div>
+                    <label class="block text-xs font-semibold text-gh-muted uppercase mb-1">Personal Access Token</label>
+                    <div class="relative">
+                        <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" required
+                            class="w-full bg-gh-input border border-gh-border rounded-lg px-3 py-2.5 text-sm text-white placeholder-gh-muted focus:outline-none focus:border-gh-accent pr-10">
+                        <button type="button" onclick="togglePatVisibility()" class="absolute right-3 top-2.5 text-gh-muted">
+                            <i data-lucide="eye" id="eye-icon" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="remember-me" checked class="rounded border-gh-border bg-gh-input text-gh-primary focus:ring-0">
+                    <label for="remember-me" class="text-xs text-gh-muted">Recordar token en este celular</label>
+                </div>
+
+                <button type="submit" id="login-btn" class="w-full bg-gh-primary hover:bg-gh-primaryHover text-white font-medium py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all active:scale-95">
+                    <span>Conectar con GitHub</span>
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </form>
+
+            <a href="https://github.com/settings/tokens/new?scopes=repo&description=GitPocketMobile" target="_blank" rel="noopener noreferrer" 
+               class="text-xs text-gh-accent hover:underline flex items-center space-x-1">
+                <span>¿Cómo crear un token? (GitHub Settings)</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+        </section>
+
+        <!-- VISTA 2: NAVEGACIÓN DE REPOSITORIOS (MIS REPOS Y BÚSQUEDA GLOBAL) -->
+        <section id="view-repos" class="hidden space-y-4">
+            <!-- Tabs Superior -->
+            <div class="flex border-b border-gh-border bg-gh-card rounded-t-xl p-1">
+                <button id="tab-my-repos" onclick="switchRepoTab('my')" class="flex-1 py-2 text-sm font-medium rounded-lg text-white bg-gh-btn border border-gh-border flex items-center justify-center space-x-2">
+                    <i data-lucide="folder-git-2" class="w-4 h-4"></i>
+                    <span>Mis Repos</span>
+                </button>
+                <button id="tab-search-repos" onclick="switchRepoTab('search')" class="flex-1 py-2 text-sm font-medium rounded-lg text-gh-muted hover:text-white flex items-center justify-center space-x-2">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                    <span>Buscar Público</span>
+                </button>
+            </div>
+
+            <!-- Buscador Dinámico -->
+            <div class="relative">
+                <input type="text" id="repo-search-input" oninput="handleRepoSearchInput()" placeholder="Filtrar o buscar repositorios..."
+                    class="w-full bg-gh-card border border-gh-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-gh-muted focus:outline-none focus:border-gh-accent">
+                <i data-lucide="search" class="w-4 h-4 text-gh-muted absolute left-3.5 top-3"></i>
+            </div>
+
+            <!-- Lista de Repositorios -->
+            <div id="repos-list" class="space-y-3">
+                <!-- Se llena mediante JS -->
+            </div>
+            
+            <div id="repos-loader" class="hidden py-12 text-center text-gh-muted">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-gh-accent"></i>
+                <p class="text-xs mt-2">Cargando repositorios...</p>
+            </div>
+        </section>
+
+        <!-- VISTA 3: EXPLORADOR DE ARCHIVOS Y CARPETAS -->
+        <section id="view-explorer" class="hidden space-y-4">
+            <!-- Header del Repositorio Activo -->
+            <div class="bg-gh-card border border-gh-border p-3 rounded-xl flex items-center justify-between">
+                <div class="flex items-center space-x-2 truncate">
+                    <button onclick="showView('view-repos')" class="p-1 rounded bg-gh-btn hover:bg-gh-btnHover">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                    <span id="current-repo-name" class="font-bold text-white text-sm truncate">usuario/repo</span>
+                </div>
+                
+                <!-- Selector de Branch -->
+                <div class="flex items-center space-x-1 bg-gh-bg border border-gh-border rounded px-2 py-1">
+                    <i data-lucide="git-branch" class="w-3.5 h-3.5 text-gh-muted"></i>
+                    <select id="branch-select" onchange="changeBranch(this.value)" class="bg-transparent text-xs text-white focus:outline-none cursor-pointer">
+                        <!-- Carga dinámica -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Breadcrumbs / Migas de pan -->
+            <div id="breadcrumbs" class="flex items-center space-x-1 text-xs text-gh-muted overflow-x-auto py-1 px-1 no-scrollbar">
+                <!-- Carga dinámica -->
+            </div>
+
+            <!-- Acciones rápidas (Subir / Nuevo Archivo) -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="openUploadModal()" class="bg-gh-primary hover:bg-gh-primaryHover text-white py-2.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 shadow">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    <span>Subir Archivo</span>
+                </button>
+                <button onclick="openCreateTextModal()" class="bg-gh-btn hover:bg-gh-btnHover border border-gh-border text-white py-2.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2">
+                    <i data-lucide="file-plus" class="w-4 h-4"></i>
+                    <span>Crear Código/Texto</span>
+                </button>
+            </div>
+
+            <!-- Contenido de la Carpeta -->
+            <div id="file-list" class="bg-gh-card border border-gh-border rounded-xl divide-y divide-gh-border overflow-hidden">
+                <!-- Se llena mediante JS -->
+            </div>
+
+            <div id="explorer-loader" class="hidden py-12 text-center text-gh-muted">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-gh-accent"></i>
+                <p class="text-xs mt-2">Cargando archivos...</p>
+            </div>
+        </section>
+
+        <!-- VISTA 4: VISOR Y EDITOR DE ARCHIVOS -->
+        <section id="view-file-detail" class="hidden space-y-4">
+            <div class="flex items-center justify-between border-b border-gh-border pb-3">
+                <button onclick="navigateCurrentFolder()" class="flex items-center space-x-1 text-xs text-gh-accent font-medium">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    <span>Volver a la lista</span>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <button id="edit-file-btn" onclick="enableFileEditing()" class="p-2 bg-gh-btn border border-gh-border rounded-lg text-gh-muted hover:text-white">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="confirmDeleteFile()" class="p-2 bg-gh-btn border border-gh-border rounded-lg text-gh-danger hover:bg-gh-danger/10">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info del archivo -->
+            <div class="bg-gh-card border border-gh-border p-3 rounded-lg flex items-center justify-between text-xs">
+                <span id="file-detail-name" class="font-mono text-white font-bold truncate">archivo.ext</span>
+                <span id="file-detail-size" class="text-gh-muted">0 KB</span>
+            </div>
+
+            <!-- Previsualización / Editor -->
+            <div id="file-preview-container" class="bg-gh-input border border-gh-border rounded-xl p-3 min-h-[250px] overflow-x-auto font-mono text-xs text-gh-text selectable">
+                <!-- Vista previa dinámica -->
+            </div>
+
+            <!-- Panel de Guardado de Cambios (Oculto por defecto) -->
+            <div id="file-edit-controls" class="hidden space-y-3 bg-gh-card p-4 rounded-xl border border-gh-border">
+                <h4 class="text-xs font-bold text-white uppercase">Guardar Cambios</h4>
+                <input type="text" id="edit-commit-message" placeholder="Mensaje del Commit (ej: Actualizar archivo)" 
+                       class="w-full bg-gh-input border border-gh-border rounded-lg px-3 py-2 text-xs text-white">
+                <div class="flex space-x-2">
+                    <button onclick="saveFileChanges()" class="flex-1 bg-gh-primary hover:bg-gh-primaryHover text-white py-2 rounded-lg text-xs font-bold">
+                        Confirmar Commit
+                    </button>
+                    <button onclick="cancelFileEditing()" class="px-4 bg-gh-btn border border-gh-border text-gh-muted rounded-lg text-xs">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL 1: SUBIR ARCHIVO -->
+    <div id="modal-upload" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-gh-card border-t sm:border border-gh-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div class="flex justify-between items-center">
+                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                    <i data-lucide="upload-cloud" class="w-5 h-5 text-gh-accent"></i>
+                    <span>Subir Cualquier Archivo</span>
+                </h3>
+                <button onclick="closeModal('modal-upload')" class="text-gh-muted hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gh-muted mb-1">Seleccionar desde el dispositivo</label>
+                    <input type="file" id="file-upload-input" onchange="handleFileSelection(event)" class="block w-full text-xs text-gh-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gh-btn file:text-white hover:file:bg-gh-btnHover">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gh-muted mb-1">Ruta de destino / Nombre de archivo</label>
+                    <input type="text" id="upload-path-input" placeholder="ejemplo: carpeta/imagen.jpg" class="w-full bg-gh-input border border-gh-border rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-gh-accent font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gh-muted mb-1">Mensaje del Commit</label>
+                    <input type="text" id="upload-commit-input" placeholder="Subir nuevo archivo desde móvil" class="w-full bg-gh-input border border-gh-border rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-gh-accent">
+                </div>
+            </div>
+
+            <div class="flex space-x-2 pt-2">
+                <button onclick="executeUpload()" id="btn-confirm-upload" class="flex-1 bg-gh-primary hover:bg-gh-primaryHover text-white py-2.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-2">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Subir a GitHub</span>
+                </button>
+                <button onclick="closeModal('modal-upload')" class="px-4 bg-gh-btn border border-gh-border text-gh-muted rounded-lg text-xs font-medium">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CREAR ARCHIVO DE TEXTO/CÓDIGO NUEVO -->
+    <div id="modal-create-text" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-gh-card border-t sm:border border-gh-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                    <i data-lucide="file-plus" class="w-5 h-5 text-gh-accent"></i>
+                    <span>Nuevo Archivo de Texto / Código</span>
+                </h3>
+                <button onclick="closeModal('modal-create-text')" class="text-gh-muted hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gh-muted mb-1">Nombre del Archivo (con extensión)</label>
+                    <input type="text" id="create-filename-input" placeholder="index.js, notas.txt, README.md" class="w-full bg-gh-input border border-gh-border rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-gh-accent">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gh-muted mb-1">Contenido inicial</label>
+                    <textarea id="create-content-input" rows="5" placeholder="// Escribe tu código o texto aquí..." class="w-full bg-gh-input border border-gh-border rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-gh-accent"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gh-muted mb-1">Mensaje del Commit</label>
+                    <input type="text" id="create-commit-input" placeholder="Crear archivo desde GitPocket" class="w-full bg-gh-input border border-gh-border rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-gh-accent">
+                </div>
+            </div>
+
+            <div class="flex space-x-2 pt-2">
+                <button onclick="executeCreateText()" class="flex-1 bg-gh-primary hover:bg-gh-primaryHover text-white py-2.5 rounded-lg text-xs font-bold flex items-center justify-center space-x-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Crear y Guardar</span>
+                </button>
+                <button onclick="closeModal('modal-create-text')" class="px-4 bg-gh-btn border border-gh-border text-gh-muted rounded-lg text-xs font-medium">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS (AlertasFlotantes) -->
+    <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm space-y-2 pointer-events-none">
+        <!-- Notificaciones JS -->
+    </div>
+
+    <!-- LÓGICA DE LA APLICACIÓN -->
+    <script>
+        // Estado Global
+        const state = {
+            pat: '',
+            user: null,
+            currentRepo: null, // { owner, name, default_branch }
+            currentBranch: '',
+            currentPath: '',
+            currentFile: null,
+            reposTab: 'my', // 'my' | 'search'
+            reposCache: [],
+            branchesCache: []
+        };
+
+        // Al iniciar la página
+        window.addEventListener('DOMContentLoaded', () => {
+            initLucide();
+            setupPWA();
+            checkSavedToken();
+        });
+
+        function initLucide() {
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Genera el manifest de PWA en tiempo de ejecución
+        function setupPWA() {
+            const manifest = {
+                name: "GitPocket Mobile",
+                short_name: "GitPocket",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#0d1117",
+                theme_color: "#161b22",
+                icons: [{
+                    src: "https://cdn-icons-png.flaticon.com/512/2504/2504911.png",
+                    sizes: "512x512",
+                    type: "image/png"
+                }]
+            };
+            const stringManifest = JSON.stringify(manifest);
+            const blob = new Blob([stringManifest], {type: 'application/json'});
+            const manifestURL = URL.createObjectURL(blob);
+            document.getElementById('manifest-placeholder').setAttribute('href', manifestURL);
+
+            // Registrar un Service Worker basico
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+                    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+                    self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+                `;
+                const blobSW = new Blob([swCode], { type: 'application/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(blobSW)).catch(() => {});
+            }
+        }
+
+        // Helper Peticiones GitHub API
+        async function githubFetch(endpoint, options = {}) {
+            const headers = {
+                'Authorization': `Bearer ${state.pat}`,
+                'Accept': 'application/vnd.github.v3+json',
+                ...options.headers
+            };
+
+            const response = await fetch(`https://api.github.com${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            if (response.status === 401) {
+                showToast("Token inválido o expirado", "error");
+                logout();
+                throw new Error("No autorizado");
+            }
+
+            return response;
+        }
+
+        // --- SISTEMA DE NAVEGACIÓN ENTRE VISTAS ---
+        function showView(viewId) {
+            ['view-login', 'view-repos', 'view-explorer', 'view-file-detail'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        // --- LOGIN & SESIÓN ---
+        function checkSavedToken() {
+            const savedPat = localStorage.getItem('gitpocket_pat');
+            if (savedPat) {
+                state.pat = savedPat;
+                validateAndInitUser();
+            } else {
+                showView('view-login');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const token = document.getElementById('pat-input').value.trim();
+            if (!token) return;
+
+            state.pat = token;
+            const success = await validateAndInitUser();
+            
+            if (success && document.getElementById('remember-me').checked) {
+                localStorage.setItem('gitpocket_pat', token);
+            }
+        }
+
+        async function validateAndInitUser() {
+            const loginBtn = document.getElementById('login-btn');
+            if (loginBtn) loginBtn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i><span>Verificando...</span>`;
+            initLucide();
+
+            try {
+                const res = await githubFetch('/user');
+                if (!res.ok) throw new Error();
+                
+                state.user = await res.json();
+                
+                // Mostrar datos de usuario en header
+                document.getElementById('user-avatar').src = state.user.avatar_url;
+                document.getElementById('user-profile-badge').classList.remove('hidden');
+                
+                showToast(`¡Bienvenido @${state.user.login}!`, 'success');
+                showView('view-repos');
+                loadRepositories();
+                return true;
+            } catch (err) {
+                showToast('Token inválido. Revisa tus permisos.', 'error');
+                if (loginBtn) loginBtn.innerHTML = `<span>Conectar con GitHub</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+                initLucide();
+                return false;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('gitpocket_pat');
+            state.pat = '';
+            state.user = null;
+            document.getElementById('user-profile-badge').classList.add('hidden');
+            document.getElementById('pat-input').value = '';
+            showView('view-login');
+            showToast('Sesión cerrada', 'info');
+        }
+
+        function togglePatVisibility() {
+            const input = document.getElementById('pat-input');
+            const icon = document.getElementById('eye-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            initLucide();
+        }
+
+        // --- REPOSITORIOS ---
+        function switchRepoTab(tab) {
+            state.reposTab = tab;
+            const btnMy = document.getElementById('tab-my-repos');
+            const btnSearch = document.getElementById('tab-search-repos');
+
+            if (tab === 'my') {
+                btnMy.className = "flex-1 py-2 text-sm font-medium rounded-lg text-white bg-gh-btn border border-gh-border flex items-center justify-center space-x-2";
+                btnSearch.className = "flex-1 py-2 text-sm font-medium rounded-lg text-gh-muted hover:text-white flex items-center justify-center space-x-2";
+                loadRepositories();
+            } else {
+                btnSearch.className = "flex-1 py-2 text-sm font-medium rounded-lg text-white bg-gh-btn border border-gh-border flex items-center justify-center space-x-2";
+                btnMy.className = "flex-1 py-2 text-sm font-medium rounded-lg text-gh-muted hover:text-white flex items-center justify-center space-x-2";
+                document.getElementById('repos-list').innerHTML = `
+                    <div class="text-center py-8 text-gh-muted text-xs">
+                        Usa la barra de búsqueda para encontrar repositorios públicos.
+                    </div>
+                `;
+            }
+        }
+
+        async function loadRepositories() {
+            const loader = document.getElementById('repos-loader');
+            const list = document.getElementById('repos-list');
+            list.innerHTML = '';
+            loader.classList.remove('hidden');
+
+            try {
+                // Obtener repos propios y orgs
+                const res = await githubFetch('/user/repos?sort=updated&per_page=100');
+                state.reposCache = await res.json();
+                renderRepoList(state.reposCache);
+            } catch (err) {
+                showToast('Error cargando repositorios', 'error');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        let searchDebounceTimeout = null;
+        function handleRepoSearchInput() {
+            clearTimeout(searchDebounceTimeout);
+            searchDebounceTimeout = setTimeout(() => {
+                const query = document.getElementById('repo-search-input').value.trim();
+                
+                if (state.reposTab === 'my') {
+                    const filtered = state.reposCache.filter(r => 
+                        r.full_name.toLowerCase().includes(query.toLowerCase())
+                    );
+                    renderRepoList(filtered);
+                } else {
+                    if (query.length > 2) executeGlobalSearch(query);
+                }
+            }, 400);
+        }
+
+        async function executeGlobalSearch(query) {
+            const loader = document.getElementById('repos-loader');
+            const list = document.getElementById('repos-list');
+            list.innerHTML = '';
+            loader.classList.remove('hidden');
+
+            try {
+                const res = await githubFetch(`/search/repositories?q=${encodeURIComponent(query)}&per_page=30`);
+                const data = await res.json();
+                renderRepoList(data.items || []);
+            } catch (err) {
+                showToast('Error buscando repositorios', 'error');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function renderRepoList(repos) {
+            const list = document.getElementById('repos-list');
+            if (repos.length === 0) {
+                list.innerHTML = `<div class="text-center py-8 text-gh-muted text-xs">No se encontraron repositorios.</div>`;
+                return;
+            }
+
+            list.innerHTML = repos.map(repo => `
+                <div onclick="selectRepo('${repo.owner.login}', '${repo.name}', '${repo.default_branch}')" 
+                     class="bg-gh-card border border-gh-border p-3.5 rounded-xl hover:border-gh-accent transition-all cursor-pointer active:scale-[0.99] space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 truncate">
+                            <i data-lucide="${repo.private ? 'lock' : 'folder-git'}" class="w-4 h-4 text-gh-accent flex-shrink-0"></i>
+                            <span class="font-bold text-white text-sm truncate">${repo.full_name}</span>
+                        </div>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full border border-gh-border text-gh-muted">
+                            ${repo.private ? 'Privado' : 'Público'}
+                        </span>
+                    </div>
+                    ${repo.description ? `<p class="text-xs text-gh-muted line-clamp-2">${escapeHTML(repo.description)}</p>` : ''}
+                    <div class="flex items-center space-x-4 text-[11px] text-gh-muted pt-1">
+                        ${repo.language ? `<span class="flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-gh-accent"></span><span>${repo.language}</span></span>` : ''}
+                        <span><i data-lucide="star" class="w-3 h-3 inline"></i> ${repo.stargazers_count}</span>
+                        <span><i data-lucide="git-fork" class="w-3 h-3 inline"></i> ${repo.forks_count}</span>
+                    </div>
+                </div>
+            `).join('');
+            initLucide();
+        }
+
+        // --- EXPLORADOR DE CARPETAS Y ARCHIVOS ---
+        async function selectRepo(owner, repoName, defaultBranch) {
+            state.currentRepo = { owner, name: repoName, default_branch: defaultBranch };
+            state.currentBranch = defaultBranch;
+            state.currentPath = '';
+
+            document.getElementById('current-repo-name').innerText = `${owner}/${repoName}`;
+            
+            showView('view-explorer');
+            await loadBranches();
+            loadDirectoryContents();
+        }
+
+        async function loadBranches() {
+            try {
+                const res = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/branches`);
+                state.branchesCache = await res.json();
+                
+                const select = document.getElementById('branch-select');
+                select.innerHTML = state.branchesCache.map(b => 
+                    `<option value="${b.name}" ${b.name === state.currentBranch ? 'selected' : ''}>${b.name}</option>`
+                ).join('');
+            } catch (e) {
+                console.error("Error al cargar ramas", e);
+            }
+        }
+
+        function changeBranch(newBranch) {
+            state.currentBranch = newBranch;
+            loadDirectoryContents();
+        }
+
+        async function loadDirectoryContents() {
+            const loader = document.getElementById('explorer-loader');
+            const list = document.getElementById('file-list');
+            list.innerHTML = '';
+            loader.classList.remove('hidden');
+
+            renderBreadcrumbs();
+
+            try {
+                const endpoint = `/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${state.currentPath}?ref=${state.currentBranch}`;
+                const res = await githubFetch(endpoint);
+                
+                if (!res.ok) throw new Error();
+                let files = await res.json();
+
+                // Ordenar: primero carpetas, luego archivos
+                files.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
+
+                if (files.length === 0) {
+                    list.innerHTML = `<div class="p-6 text-center text-gh-muted text-xs">Carpeta vacía</div>`;
+                } else {
+                    list.innerHTML = files.map(item => `
+                        <div onclick="clickItem('${item.type}', '${item.path}', '${item.sha}')" 
+                             class="p-3 flex items-center justify-between hover:bg-gh-btn/50 cursor-pointer transition-colors active:bg-gh-btn">
+                            <div class="flex items-center space-x-3 truncate">
+                                <i data-lucide="${item.type === 'dir' ? 'folder' : 'file-text'}" 
+                                   class="w-5 h-5 ${item.type === 'dir' ? 'text-gh-accent fill-gh-accent/20' : 'text-gh-muted'}"></i>
+                                <span class="text-xs text-white truncate font-medium">${item.name}</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-gh-muted text-xs">
+                                ${item.type === 'file' ? `<span>${formatBytes(item.size)}</span>` : ''}
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                    `).join('');
+                    initLucide();
+                }
+            } catch (err) {
+                showToast('Error cargando el contenido', 'error');
+                list.innerHTML = `<div class="p-6 text-center text-gh-danger text-xs">No se pudo cargar este directorio.</div>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function clickItem(type, path, sha) {
+            if (type === 'dir') {
+                state.currentPath = path;
+                loadDirectoryContents();
+            } else {
+                openFileDetail(path, sha);
+            }
+        }
+
+        function renderBreadcrumbs() {
+            const container = document.getElementById('breadcrumbs');
+            const parts = state.currentPath ? state.currentPath.split('/') : [];
+            
+            let html = `
+                <button onclick="navigateToBreadcrumb('')" class="hover:text-white font-medium flex items-center">
+                    <i data-lucide="home" class="w-3.5 h-3.5 mr-1"></i> raiz
+                </button>
+            `;
+
+            let currentAcc = '';
+            parts.forEach((part, index) => {
+                currentAcc += (index === 0 ? '' : '/') + part;
+                const isLast = index === parts.length - 1;
+                const pathTarget = currentAcc;
+                
+                html += `<span class="text-gh-muted">/</span>`;
+                if (isLast) {
+                    html += `<span class="text-white font-bold">${part}</span>`;
+                } else {
+                    html += `<button onclick="navigateToBreadcrumb('${pathTarget}')" class="hover:text-white">${part}</button>`;
+                }
+            });
+
+            container.innerHTML = html;
+            initLucide();
+        }
+
+        function navigateToBreadcrumb(path) {
+            state.currentPath = path;
+            loadDirectoryContents();
+        }
+
+        function navigateCurrentFolder() {
+            showView('view-explorer');
+        }
+
+        // --- VER Y EDITAR ARCHIVO ---
+        async function openFileDetail(path, sha) {
+            showView('view-file-detail');
+            const preview = document.getElementById('file-preview-container');
+            const editControls = document.getElementById('file-edit-controls');
+            
+            editControls.classList.add('hidden');
+            preview.innerHTML = `<div class="p-8 text-center"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto text-gh-accent"></i></div>`;
+            initLucide();
+
+            try {
+                const res = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${path}?ref=${state.currentBranch}`);
+                const fileData = await res.json();
+                
+                state.currentFile = fileData;
+
+                document.getElementById('file-detail-name').innerText = fileData.name;
+                document.getElementById('file-detail-size').innerText = formatBytes(fileData.size);
+
+                // Determinar tipo
+                const ext = fileData.name.split('.').pop().toLowerCase();
+                const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+
+                if (imageExts.includes(ext)) {
+                    preview.innerHTML = `
+                        <div class="flex justify-center p-4">
+                            <img src="data:image/${ext};base64,${fileData.content}" alt="${fileData.name}" class="max-h-72 object-contain rounded">
+                        </div>
+                    `;
+                    document.getElementById('edit-file-btn').classList.add('hidden');
+                } else {
+                    // Contenido de texto
+                    document.getElementById('edit-file-btn').classList.remove('hidden');
+                    const decoded = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
+                    preview.innerHTML = `<pre id="code-content" class="whitespace-pre-wrap break-all">${escapeHTML(decoded)}</pre>`;
+                }
+
+            } catch (e) {
+                showToast('Error cargando detalle del archivo', 'error');
+                preview.innerHTML = `<p class="text-gh-danger text-center">No se pudo cargar la vista previa.</p>`;
+            }
+        }
+
+        function enableFileEditing() {
+            const preview = document.getElementById('file-preview-container');
+            const codeElem = document.getElementById('code-content');
+            if (!codeElem) return;
+
+            const textContent = codeElem.innerText;
+            preview.innerHTML = `<textarea id="edit-textarea" rows="12" class="w-full h-full bg-transparent border-0 text-white font-mono text-xs focus:outline-none resize-none">${escapeHTML(textContent)}</textarea>`;
+            
+            document.getElementById('file-edit-controls').classList.remove('hidden');
+            document.getElementById('edit-commit-message').value = `Actualizar ${state.currentFile.name}`;
+        }
+
+        function cancelFileEditing() {
+            openFileDetail(state.currentFile.path, state.currentFile.sha);
+        }
+
+        async function saveFileChanges() {
+            const newContent = document.getElementById('edit-textarea').value;
+            const commitMessage = document.getElementById('edit-commit-message').value.trim() || `Actualizar ${state.currentFile.name}`;
+            
+            // Codificar Base64 seguro UTF-8
+            const base64Content = btoa(unescape(encodeURIComponent(newContent)));
+
+            try {
+                showToast('Guardando cambios...', 'info');
+                const res = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${state.currentFile.path}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        message: commitMessage,
+                        content: base64Content,
+                        sha: state.currentFile.sha,
+                        branch: state.currentBranch
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('¡Archivo actualizado correctamente!', 'success');
+                    showView('view-explorer');
+                    loadDirectoryContents();
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                showToast('Error al actualizar archivo', 'error');
+            }
+        }
+
+        // --- ELIMINAR ARCHIVO ---
+        async function confirmDeleteFile() {
+            if (!confirm(`¿Estás seguro de que deseas eliminar ${state.currentFile.name}?`)) return;
+
+            const commitMessage = prompt("Mensaje del commit para la eliminación:", `Eliminar ${state.currentFile.name}`);
+            if (!commitMessage) return;
+
+            try {
+                showToast('Eliminando archivo...', 'info');
+                const res = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${state.currentFile.path}`, {
+                    method: 'DELETE',
+                    body: JSON.stringify({
+                        message: commitMessage,
+                        sha: state.currentFile.sha,
+                        branch: state.currentBranch
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('Archivo eliminado', 'success');
+                    showView('view-explorer');
+                    loadDirectoryContents();
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                showToast('Error al eliminar el archivo', 'error');
+            }
+        }
+
+        // --- MODALES (SUBIDA Y CREACIÓN) ---
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // Subida de cualquier tipo de archivo
+        let selectedFileBase64 = null;
+        
+        function openUploadModal() {
+            selectedFileBase64 = null;
+            document.getElementById('file-upload-input').value = '';
+            document.getElementById('upload-path-input').value = state.currentPath ? `${state.currentPath}/` : '';
+            document.getElementById('upload-commit-input').value = '';
+            openModal('modal-upload');
+        }
+
+        function handleFileSelection(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const pathInput = document.getElementById('upload-path-input');
+            const basePath = state.currentPath ? `${state.currentPath}/` : '';
+            pathInput.value = basePath + file.name;
+            
+            document.getElementById('upload-commit-input').value = `Subir ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                // Extraer solo Base64
+                const binaryString = evt.target.result;
+                selectedFileBase64 = btoa(binaryString);
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        async function executeUpload() {
+            const path = document.getElementById('upload-path-input').value.trim();
+            const commitMsg = document.getElementById('upload-commit-input').value.trim() || 'Subir archivo desde GitPocket';
+
+            if (!path || !selectedFileBase64) {
+                showToast('Por favor selecciona un archivo y asigna una ruta.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-confirm-upload');
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Subiendo...</span>`;
+            initLucide();
+
+            try {
+                // Verificar si ya existe el archivo para obtener su SHA
+                let sha = undefined;
+                try {
+                    const checkRes = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${path}?ref=${state.currentBranch}`);
+                    if (checkRes.ok) {
+                        const existingData = await checkRes.json();
+                        sha = existingData.sha;
+                    }
+                } catch(e){}
+
+                const res = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${path}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        message: commitMsg,
+                        content: selectedFileBase64,
+                        branch: state.currentBranch,
+                        sha: sha
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('¡Archivo subido con éxito!', 'success');
+                    closeModal('modal-upload');
+                    loadDirectoryContents();
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                showToast('Error al subir el archivo', 'error');
+            } finally {
+                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Subir a GitHub</span>`;
+                initLucide();
+            }
+        }
+
+        // Creación manual de texto/código
+        function openCreateTextModal() {
+            document.getElementById('create-filename-input').value = '';
+            document.getElementById('create-content-input').value = '';
+            document.getElementById('create-commit-input').value = '';
+            openModal('modal-create-text');
+        }
+
+        async function executeCreateText() {
+            const filename = document.getElementById('create-filename-input').value.trim();
+            const content = document.getElementById('create-content-input').value;
+            const commitMsg = document.getElementById('create-commit-input').value.trim() || `Crear ${filename}`;
+
+            if (!filename) {
+                showToast('Ingresa el nombre del archivo.', 'error');
+                return;
+            }
+
+            const fullPath = state.currentPath ? `${state.currentPath}/${filename}` : filename;
+            const base64Content = btoa(unescape(encodeURIComponent(content)));
+
+            try {
+                showToast('Creando archivo...', 'info');
+                const res = await githubFetch(`/repos/${state.currentRepo.owner}/${state.currentRepo.name}/contents/${fullPath}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        message: commitMsg,
+                        content: base64Content,
+                        branch: state.currentBranch
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('¡Archivo creado!', 'success');
+                    closeModal('modal-create-text');
+                    loadDirectoryContents();
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                showToast('Error al crear el archivo', 'error');
+            }
+        }
+
+        // --- SISTEMA DE TOASTS ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColors = {
+                success: 'bg-gh-primary text-white border-gh-primaryHover',
+                error: 'bg-gh-danger text-white border-red-600',
+                info: 'bg-gh-card text-white border-gh-border'
+            };
+
+            toast.className = `p-3 rounded-xl border shadow-2xl text-xs font-semibold flex items-center justify-between transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-auto ${bgColors[type]}`;
+            toast.innerHTML = `
+                <span>${escapeHTML(message)}</span>
+                <button onclick="this.parentElement.remove()" class="ml-2 text-white/80 hover:text-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+            initLucide();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // --- UTILIDADES ---
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
