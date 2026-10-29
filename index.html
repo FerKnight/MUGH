@@ -1,105 +1,481 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101114">
-  <meta name="description" content="MUGH: administrador ligero de repositorios GitHub">
-  <title>MUGH</title>
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="manifest" href="./manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d1117">
+  <title>Subidor GH</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+      padding: 16px;
+      padding-bottom: 40px;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 1.3rem; margin-bottom: 4px; color: #f0f6fc; }
+    .subtitle { font-size: 0.8rem; color: #8b949e; margin-bottom: 24px; }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #8b949e;
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+      color: #c9d1d9;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #f0f6fc;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      -webkit-appearance: none;
+    }
+    input:focus { outline: none; border-color: #58a6ff; }
+    input::placeholder { color: #484f58; }
+    .hint {
+      font-size: 0.75rem;
+      color: #8b949e;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .hint a { color: #58a6ff; text-decoration: none; }
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active { opacity: 0.8; }
+    .btn-primary { background: #238636; color: #fff; }
+    .btn-primary:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+    .file-picker {
+      display: block;
+      width: 100%;
+      padding: 40px 16px;
+      border: 2px dashed #30363d;
+      border-radius: 8px;
+      text-align: center;
+      color: #8b949e;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .file-picker:active { border-color: #58a6ff; }
+    .file-picker.has-files { border-color: #238636; color: #3fb950; }
+    #fileInput { display: none; }
+    .file-list {
+      list-style: none;
+      margin-top: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .file-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: #0d1117;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.8rem;
+    }
+    .file-list .size { color: #8b949e; font-size: 0.7rem; margin-left: 8px; }
+    .file-list .remove {
+      color: #f85149;
+      cursor: pointer;
+      font-weight: bold;
+      padding: 0 4px;
+      background: none;
+      border: none;
+      width: auto;
+      font-size: 1rem;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      margin-top: 12px;
+      display: none;
+      word-break: break-word;
+    }
+    .status.success { display: block; background: #0d2818; color: #3fb950; border: 1px solid #238636; }
+    .status.error { display: block; background: #2d0f0f; color: #f85149; border: 1px solid #da3633; }
+    .status.info { display: block; background: #0d1f2d; color: #58a6ff; border: 1px solid #1f6feb; }
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #21262d;
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #238636;
+      width: 0%;
+      transition: width 0.2s;
+      border-radius: 2px;
+    }
+    .hidden { display: none; }
+    .app-footer {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #484f58;
+      margin-top: 32px;
+    }
+  </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span class="brand-icon">M</span><span>MUGH</span></div>
-    <div id="userLabel" class="muted">Sin sesión</div>
-  </header>
+<div class="container">
+  <h1>📤 Subidor GH</h1>
+  <p class="subtitle">Sube cualquier archivo a tu repositorio de GitHub desde el móvil</p>
 
-  <main>
-    <section id="loginView" class="login panel">
-      <div class="logo">M</div>
-      <h1>MUGH</h1>
-      <p class="muted">Administra tus repositorios desde un solo lugar.</p>
+  <!-- Sección Token -->
+  <div class="card" id="tokenSection">
+    <div class="card-title">🔑 Token de GitHub</div>
+    <label for="tokenInput">Token de acceso personal (Fine-grained)</label>
+    <input type="password" id="tokenInput" placeholder="github_pat_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div class="hint">
+      Requiere permiso <strong>Contents: Read and write</strong>, limitado al repositorio destino.
+      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Crear Token →</a>
+    </div>
+    <button class="btn-primary" id="saveTokenBtn">Guardar Token</button>
+  </div>
 
-      <label for="token">Token de acceso personal de GitHub</label>
-      <input id="token" type="password"
-        placeholder="Pega tu token aquí"
-        autocomplete="off" spellcheck="false">
+  <!-- Configuración del repositorio -->
+  <div class="card">
+    <div class="card-title">📁 Repositorio destino</div>
+    <label for="ownerInput">Usuario / Organización</label>
+    <input type="text" id="ownerInput" placeholder="octocat" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <label for="repoInput">Nombre del repositorio</label>
+    <input type="text" id="repoInput" placeholder="mis-archivos" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <label for="branchInput">Rama (por defecto main)</label>
+    <input type="text" id="branchInput" placeholder="main" value="main" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  </div>
 
-      <button id="loginBtn">Iniciar sesión</button>
-      <a href="https://github.com/settings/personal-access-tokens/new"
-         target="_blank" rel="noopener noreferrer">
-        ¿Cómo conseguir mi token?
-      </a>
+  <!-- Selección de archivos -->
+  <div class="card">
+    <div class="card-title">📎 Seleccionar archivos</div>
+    <input type="file" id="fileInput" multiple>
+    <div class="file-picker" id="filePicker">
+      Toca para seleccionar cualquier archivo<br>
+      <span style="font-size:0.75rem;">Selección múltiple, sin restricción de tipo</span>
+    </div>
+    <ul class="file-list" id="fileList"></ul>
+    <button class="btn-primary" id="uploadBtn" style="margin-top:12px;" disabled>Subir a GitHub</button>
+    <div class="status" id="status"></div>
+    <div class="progress-bar hidden" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
 
-      <p class="hint">
-        Tu token permanece en memoria mientras usas MUGH.
-        No lo compartas ni lo incluyas en el código.
-      </p>
-    </section>
-
-    <section id="workspace" hidden>
-      <div class="toolbar">
-        <input id="repoSearch" placeholder="Buscar repositorios…"
-          aria-label="Buscar repositorios">
-        <button id="refreshBtn" class="secondary">Actualizar</button>
-        <button id="logoutBtn" class="secondary">Cerrar sesión</button>
-      </div>
-
-      <div class="layout">
-        <aside class="panel repo-panel">
-          <h2>Repositorios</h2>
-          <div id="repoList" class="repo-list"></div>
-        </aside>
-
-        <section class="panel files-panel">
-          <div class="section-head">
-            <div>
-              <h2 id="repoTitle">Selecciona un repositorio</h2>
-              <div id="pathLabel" class="muted">Archivos y carpetas</div>
-            </div>
-            <div class="actions">
-  <button id="upBtn" class="secondary" disabled>Subir nivel</button>
-  <button id="newBtn" class="secondary" disabled>Nuevo archivo</button>
-  <button id="newFolderBtn" class="secondary" disabled>Nueva carpeta</button>
-  <button id="uploadBtn" class="secondary" disabled>Subir archivos</button>
-  <input id="filePicker" type="file" multiple hidden>
+  <div class="app-footer">El Token solo se guarda en sessionStorage del dispositivo; se borra al cerrar el navegador</div>
 </div>
-          </div>
 
-          <div id="fileList" class="file-list">
-            <p class="muted">Elige un repositorio para comenzar.</p>
-          </div>
+<script>
+(function() {
+  'use strict';
 
-          <div id="editor" hidden>
-            <div class="editor-head">
-              <strong id="editorPath"></strong>
-              <button id="closeEditorBtn" class="secondary">Cerrar</button>
-            </div>
+  const $ = id => document.getElementById(id);
 
-            <textarea id="fileContent" spellcheck="false"
-              aria-label="Contenido del archivo"></textarea>
+  const tokenInput = $('tokenInput');
+  const ownerInput = $('ownerInput');
+  const repoInput = $('repoInput');
+  const branchInput = $('branchInput');
+  const fileInput = $('fileInput');
+  const filePicker = $('filePicker');
+  const fileList = $('fileList');
+  const uploadBtn = $('uploadBtn');
+  const statusEl = $('status');
+  const progressBar = $('progressBar');
+  const progressFill = $('progressFill');
 
-            <div class="editor-footer">
-              <input id="commitMessage" value="Actualizar archivo"
-                aria-label="Mensaje del commit">
-              <button id="saveBtn">Guardar commit</button>
-              <button id="deleteBtn" class="danger">Eliminar archivo</button>
-            </div>
+  let selectedFiles = [];
+  let currentToken = '';
 
-            <p class="hint">
-              El editor permite modificar archivos de texto. Los archivos
-              binarios pueden subirse, pero no editarse como texto.
-            </p>
-          </div>
-        </section>
-      </div>
-    </section>
+  // ---------- Persistencia (solo sessionStorage) ----------
+  function loadConfig() {
+    currentToken = sessionStorage.getItem('gh_token') || '';
+    ownerInput.value = sessionStorage.getItem('gh_owner') || '';
+    repoInput.value = sessionStorage.getItem('gh_repo') || '';
+    branchInput.value = sessionStorage.getItem('gh_branch') || 'main';
+    if (currentToken) {
+      tokenInput.value = '••••••••••••••••';
+      tokenInput.dataset.saved = 'true';
+    }
+  }
 
-    <div id="status" role="status" aria-live="polite"></div>
-  </main>
+  function saveConfig() {
+    sessionStorage.setItem('gh_owner', ownerInput.value.trim());
+    sessionStorage.setItem('gh_repo', repoInput.value.trim());
+    sessionStorage.setItem('gh_branch', branchInput.value.trim() || 'main');
+  }
 
-  <script src="./app.js"></script>
+  // ---------- Guardar Token ----------
+  $('saveTokenBtn').addEventListener('click', function() {
+    const raw = tokenInput.value.trim();
+    if (!raw || raw === '••••••••••••••••') {
+      showStatus('Ingresa un Token válido', 'error');
+      return;
+    }
+    currentToken = raw;
+    sessionStorage.setItem('gh_token', raw);
+    tokenInput.value = '••••••••••••••••';
+    tokenInput.dataset.saved = 'true';
+    showStatus('Token guardado (válido en esta sesión)', 'success');
+  });
+
+  // Al enfocar el campo del token, si ya estaba guardado se limpia para reingresar
+  tokenInput.addEventListener('focus', function() {
+    if (this.dataset.saved === 'true') {
+      this.value = '';
+      this.dataset.saved = 'false';
+    }
+  });
+
+  // ---------- Selección de archivos ----------
+  filePicker.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', function() {
+    const newFiles = Array.from(this.files);
+    if (newFiles.length === 0) return;
+
+    // Evitar duplicados por nombre
+    const existingNames = new Set(selectedFiles.map(f => f.name));
+    newFiles.forEach(f => {
+      if (!existingNames.has(f.name)) {
+        selectedFiles.push(f);
+        existingNames.add(f.name);
+      }
+    });
+
+    this.value = '';
+    renderFileList();
+  });
+
+  function renderFileList() {
+    fileList.innerHTML = '';
+    if (selectedFiles.length === 0) {
+      filePicker.classList.remove('has-files');
+      filePicker.innerHTML = 'Toca para seleccionar cualquier archivo<br><span style="font-size:0.75rem;">Selección múltiple, sin restricción de tipo</span>';
+      uploadBtn.disabled = true;
+      return;
+    }
+
+    filePicker.classList.add('has-files');
+    filePicker.innerHTML = `Has seleccionado <strong>${selectedFiles.length}</strong> archivo(s)<br><span style="font-size:0.75rem;">Toca para añadir más</span>`;
+
+    selectedFiles.forEach((file, idx) => {
+      const li = document.createElement('li');
+      const sizeStr = file.size < 1024 ? file.size + ' B'
+        : file.size < 1048576 ? (file.size / 1024).toFixed(1) + ' KB'
+        : (file.size / 1048576).toFixed(1) + ' MB';
+
+      li.innerHTML = `<span>${escapeHtml(file.name)}<span class="size">${sizeStr}</span></span>`;
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'remove';
+      rmBtn.textContent = '×';
+      rmBtn.addEventListener('click', () => {
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+      });
+      li.appendChild(rmBtn);
+      fileList.appendChild(li);
+    });
+
+    updateUploadBtnState();
+  }
+
+  function updateUploadBtnState() {
+    const ready = currentToken &&
+      ownerInput.value.trim() &&
+      repoInput.value.trim() &&
+      selectedFiles.length > 0;
+    uploadBtn.disabled = !ready;
+  }
+
+  // Escuchar cambios en la configuración del repositorio
+  [ownerInput, repoInput, branchInput].forEach(el => {
+    el.addEventListener('input', function() {
+      saveConfig();
+      updateUploadBtnState();
+    });
+  });
+
+  // ---------- Utilidades ----------
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function showStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status ' + type;
+  }
+
+  function hideStatus() {
+    statusEl.className = 'status';
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // reader.result es data:...;base64,xxxx
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo: ' + file.name));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setProgress(current, total) {
+    progressBar.classList.remove('hidden');
+    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+    progressFill.style.width = pct + '%';
+    if (current >= total) {
+      setTimeout(() => { progressBar.classList.add('hidden'); }, 600);
+    }
+  }
+
+  // ---------- Lógica central de subida ----------
+  async function uploadFile(owner, repo, branch, file, index, total) {
+    const base64Content = await fileToBase64(file);
+
+    // Añadir prefijo de marca temporal para evitar colisiones de nombres
+    const now = new Date();
+    const ts = now.getFullYear().toString()
+      + String(now.getMonth() + 1).padStart(2, '0')
+      + String(now.getDate()).padStart(2, '0')
+      + '_'
+      + String(now.getHours()).padStart(2, '0')
+      + String(now.getMinutes()).padStart(2, '0')
+      + String(now.getSeconds()).padStart(2, '0');
+
+    // Conservar el nombre original con prefijo de marca temporal
+    const safeName = file.name.replace(/[\/\\]/g, '_');
+    const path = `${ts}_${safeName}`;
+
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}`;
+
+    const body = {
+      message: `Subida de ${file.name} vía Subidor GH PWA`,
+      content: base64Content,
+      branch: branch || 'main'
+    };
+
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      let errMsg = `HTTP ${resp.status}`;
+      try {
+        const errData = await resp.json();
+        errMsg = errData.message || errMsg;
+      } catch (e) { /* ignorar */ }
+      throw new Error(`${file.name}: ${errMsg}`);
+    }
+
+    return await resp.json();
+  }
+
+  // ---------- Botón de subida ----------
+  uploadBtn.addEventListener('click', async function() {
+    const owner = ownerInput.value.trim();
+    const repo = repoInput.value.trim();
+    const branch = branchInput.value.trim() || 'main';
+
+    if (!currentToken) { showStatus('Primero guarda un Token', 'error'); return; }
+    if (!owner || !repo) { showStatus('Completa el usuario y el nombre del repositorio', 'error'); return; }
+    if (selectedFiles.length === 0) { showStatus('Selecciona al menos un archivo', 'error'); return; }
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Subiendo...';
+    hideStatus();
+    setProgress(0, selectedFiles.length);
+
+    let successCount = 0;
+    let failCount = 0;
+    const errors = [];
+
+    // Subida secuencial (evita límites de velocidad de GitHub)
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      try {
+        showStatus(`Subiendo (${i + 1}/${selectedFiles.length}): ${file.name}`, 'info');
+        await uploadFile(owner, repo, branch, file, i, selectedFiles.length);
+        successCount++;
+      } catch (err) {
+        failCount++;
+        errors.push(err.message);
+      }
+      setProgress(i + 1, selectedFiles.length);
+    }
+
+    // Resultado
+    if (failCount === 0) {
+      showStatus(`✅ Los ${successCount} archivos se subieron correctamente`, 'success');
+      selectedFiles = [];
+      renderFileList();
+    } else if (successCount === 0) {
+      showStatus(`❌ Todos fallaron: ${errors[0]}`, 'error');
+    } else {
+      showStatus(`⚠️ ${successCount} correctos, ${failCount} fallidos. ${errors[0]}`, 'error');
+    }
+
+    uploadBtn.textContent = 'Subir a GitHub';
+    updateUploadBtnState();
+  });
+
+  // ---------- Inicialización ----------
+  loadConfig();
+  updateUploadBtnState();
+
+  // Registrar Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // Guardar configuración antes de cerrar la página (sin el Token)
+  window.addEventListener('beforeunload', saveConfig);
+
+})();
+</script>
 </body>
 </html>
