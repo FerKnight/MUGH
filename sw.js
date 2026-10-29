@@ -1,68 +1,42 @@
-
-"use strict";
-
-var CACHE_NAME = "mugh-shell-v1";
-
-var APP_FILES = [
-  "./",
-  "./index.html",
-  "./styles.css",
-  "./app.js",
-  "./manifest.json"
+const CACHE_NAME = 'subidor-gh-v1';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json'
 ];
 
-self.addEventListener("install", function (event) {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(function (cache) {
-        return cache.addAll(APP_FILES);
-      })
-      .then(function () {
-        return self.skipWaiting();
-      })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
+  self.skipWaiting();
 });
 
-self.addEventListener("activate", function (event) {
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.map(function (key) {
-        if (key !== CACHE_NAME) {
-          return caches.delete(key);
-        }
-      }));
-    }).then(function () {
-      return self.clients.claim();
-    })
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      )
+    )
   );
+  self.clients.claim();
 });
 
-self.addEventListener("fetch", function (event) {
-  var request = event.request;
-  var url = new URL(request.url);
-
-  if (
-    request.method !== "GET" ||
-    url.origin !== self.location.origin
-  ) {
-    return;
-  }
+self.addEventListener('fetch', event => {
+  // Solo cachear peticiones GET de recursos estáticos; las llamadas a la API van directas a la red
+  if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('api.github.com')) return;
 
   event.respondWith(
-    fetch(request).then(function (response) {
-      if (response.ok) {
-        var copy = response.clone();
-
-        caches.open(CACHE_NAME).then(function (cache) {
-          cache.put(request, copy);
-        });
-      }
-
-      return response;
-    }).catch(function () {
-      return caches.match(request).then(function (cached) {
-        return cached || caches.match("./index.html");
+    caches.match(event.request).then(cached => {
+      return cached || fetch(event.request).then(response => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
       });
-    })
+    }).catch(() => caches.match('./index.html'))
   );
 });
