@@ -1,7 +1,7 @@
 {
-  "name": "Subidor GH",
-  "short_name": "SubirGH",
-  "description": "Sube cualquier archivo a tu repositorio de GitHub desde el móvil",
+  "name": "Panel GitHub",
+  "short_name": "PanelGH",
+  "description": "Inicia sesión, explora repositorios, edita y sube archivos a GitHub desde el móvil",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0d1117",
