@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0d1117">
-  <title>Subidor GH</title>
+  <title>Panel GitHub</title>
   <link rel="manifest" href="manifest.json">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,15 +16,15 @@
       padding: 16px;
       padding-bottom: 40px;
     }
-    .container { max-width: 600px; margin: 0 auto; }
+    .container { max-width: 640px; margin: 0 auto; }
     h1 { font-size: 1.3rem; margin-bottom: 4px; color: #f0f6fc; }
-    .subtitle { font-size: 0.8rem; color: #8b949e; margin-bottom: 24px; }
+    .subtitle { font-size: 0.8rem; color: #8b949e; margin-bottom: 20px; }
     .card {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 12px;
       padding: 16px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     .card-title {
       font-size: 0.75rem;
@@ -32,15 +32,12 @@
       letter-spacing: 0.5px;
       color: #8b949e;
       margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    label {
-      display: block;
-      font-size: 0.85rem;
-      margin-bottom: 4px;
-      color: #c9d1d9;
-    }
-    input[type="text"],
-    input[type="password"] {
+    label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: #c9d1d9; }
+    input[type="text"], input[type="password"], textarea {
       width: 100%;
       padding: 12px;
       background: #0d1117;
@@ -50,432 +47,722 @@
       font-size: 1rem;
       margin-bottom: 12px;
       -webkit-appearance: none;
+      font-family: inherit;
     }
-    input:focus { outline: none; border-color: #58a6ff; }
-    input::placeholder { color: #484f58; }
-    .hint {
-      font-size: 0.75rem;
-      color: #8b949e;
-      margin-bottom: 12px;
-      line-height: 1.5;
-    }
+    textarea { resize: vertical; min-height: 200px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }
+    input:focus, textarea:focus { outline: none; border-color: #58a6ff; }
+    input::placeholder, textarea::placeholder { color: #484f58; }
+    .hint { font-size: 0.75rem; color: #8b949e; margin-bottom: 12px; line-height: 1.5; }
     .hint a { color: #58a6ff; text-decoration: none; }
     button {
       width: 100%;
-      padding: 14px;
+      padding: 12px;
       border: none;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
       cursor: pointer;
       transition: opacity 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
     button:active { opacity: 0.8; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-primary { background: #238636; color: #fff; }
-    .btn-primary:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
-    .file-picker {
-      display: block;
-      width: 100%;
-      padding: 40px 16px;
-      border: 2px dashed #30363d;
-      border-radius: 8px;
-      text-align: center;
-      color: #8b949e;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
-    .file-picker:active { border-color: #58a6ff; }
-    .file-picker.has-files { border-color: #238636; color: #3fb950; }
-    #fileInput { display: none; }
-    .file-list {
-      list-style: none;
-      margin-top: 12px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .file-list li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 10px;
+    .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+    .btn-danger { background: #da3633; color: #fff; }
+    .btn-sm { padding: 8px 12px; font-size: 0.8rem; width: auto; }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    .hidden { display: none !important; }
+
+    /* Lista de repositorios */
+    .repo-list { list-style: none; max-height: 300px; overflow-y: auto; }
+    .repo-list li {
+      padding: 12px;
       background: #0d1117;
-      border-radius: 6px;
-      margin-bottom: 4px;
-      font-size: 0.8rem;
-    }
-    .file-list .size { color: #8b949e; font-size: 0.7rem; margin-left: 8px; }
-    .file-list .remove {
-      color: #f85149;
+      border-radius: 8px;
+      margin-bottom: 6px;
       cursor: pointer;
-      font-weight: bold;
-      padding: 0 4px;
-      background: none;
-      border: none;
-      width: auto;
-      font-size: 1rem;
+      border: 1px solid transparent;
+      transition: border-color 0.15s;
     }
+    .repo-list li:active { border-color: #58a6ff; }
+    .repo-list li.selected { border-color: #238636; background: #0d2818; }
+    .repo-name { font-weight: 600; color: #f0f6fc; font-size: 0.9rem; }
+    .repo-meta { font-size: 0.7rem; color: #8b949e; margin-top: 4px; }
+    .repo-meta .private-badge { color: #d29922; }
+
+    /* Explorador de archivos */
+    .file-browser { list-style: none; max-height: 350px; overflow-y: auto; }
+    .file-browser li {
+      display: flex;
+      align-items: center;
+      padding: 10px 8px;
+      border-bottom: 1px solid #21262d;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .file-browser li:last-child { border-bottom: none; }
+    .file-browser li:active { background: #21262d; }
+    .file-icon { margin-right: 8px; font-size: 1rem; }
+    .file-name { flex: 1; word-break: break-all; }
+    .file-size { color: #8b949e; font-size: 0.7rem; margin-left: 8px; white-space: nowrap; }
+    .file-actions { display: flex; gap: 6px; margin-left: 8px; }
+    .file-actions button { padding: 4px 8px; font-size: 0.7rem; width: auto; border-radius: 4px; }
+
+    /* Editor */
+    .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .editor-filename { font-size: 0.85rem; color: #58a6ff; word-break: break-all; }
+    .breadcrumb { font-size: 0.75rem; color: #8b949e; margin-bottom: 8px; word-break: break-all; }
+
+    /* Estado */
     .status {
       padding: 10px;
       border-radius: 8px;
       font-size: 0.8rem;
-      margin-top: 12px;
+      margin-top: 10px;
       display: none;
       word-break: break-word;
     }
     .status.success { display: block; background: #0d2818; color: #3fb950; border: 1px solid #238636; }
     .status.error { display: block; background: #2d0f0f; color: #f85149; border: 1px solid #da3633; }
     .status.info { display: block; background: #0d1f2d; color: #58a6ff; border: 1px solid #1f6feb; }
-    .progress-bar {
-      width: 100%;
-      height: 4px;
-      background: #21262d;
-      border-radius: 2px;
-      margin-top: 8px;
-      overflow: hidden;
+    .progress-bar { width: 100%; height: 4px; background: #21262d; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #238636; width: 0%; transition: width 0.2s; border-radius: 2px; }
+
+    /* File picker */
+    .file-picker {
+      display: block; width: 100%; padding: 24px 16px;
+      border: 2px dashed #30363d; border-radius: 8px;
+      text-align: center; color: #8b949e; font-size: 0.85rem; cursor: pointer;
     }
-    .progress-fill {
-      height: 100%;
-      background: #238636;
-      width: 0%;
-      transition: width 0.2s;
-      border-radius: 2px;
+    .file-picker:active { border-color: #58a6ff; }
+    .file-picker.has-files { border-color: #238636; color: #3fb950; }
+    #fileInput { display: none; }
+    .upload-list { list-style: none; margin-top: 8px; max-height: 150px; overflow-y: auto; }
+    .upload-list li {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 10px; background: #0d1117; border-radius: 6px;
+      margin-bottom: 4px; font-size: 0.78rem;
     }
-    .hidden { display: none; }
-    .app-footer {
-      text-align: center;
-      font-size: 0.7rem;
-      color: #484f58;
-      margin-top: 32px;
+    .upload-list .remove {
+      color: #f85149; cursor: pointer; font-weight: bold;
+      background: none; border: none; width: auto; font-size: 1rem; padding: 0 4px;
     }
+    .app-footer { text-align: center; font-size: 0.7rem; color: #484f58; margin-top: 24px; }
+    .nav-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+    .nav-tabs button {
+      flex: 1; padding: 10px; border-radius: 8px;
+      background: #21262d; color: #8b949e; border: 1px solid #30363d;
+      font-size: 0.8rem; font-weight: 500;
+    }
+    .nav-tabs button.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>📤 Subidor GH</h1>
-  <p class="subtitle">Sube cualquier archivo a tu repositorio de GitHub desde el móvil</p>
+  <h1>🗂️ Panel GitHub</h1>
+  <p class="subtitle">Inicia sesión, explora repositorios, edita y sube archivos</p>
 
-  <!-- Sección Token -->
-  <div class="card" id="tokenSection">
-    <div class="card-title">🔑 Token de GitHub</div>
-    <label for="tokenInput">Token de acceso personal (Fine-grained)</label>
-    <input type="password" id="tokenInput" placeholder="github_pat_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-    <div class="hint">
-      Requiere permiso <strong>Contents: Read and write</strong>, limitado al repositorio destino.
-      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Crear Token →</a>
-    </div>
-    <button class="btn-primary" id="saveTokenBtn">Guardar Token</button>
-  </div>
-
-  <!-- Configuración del repositorio -->
-  <div class="card">
-    <div class="card-title">📁 Repositorio destino</div>
-    <label for="ownerInput">Usuario / Organización</label>
-    <input type="text" id="ownerInput" placeholder="octocat" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-    <label for="repoInput">Nombre del repositorio</label>
-    <input type="text" id="repoInput" placeholder="mis-archivos" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-    <label for="branchInput">Rama (por defecto main)</label>
-    <input type="text" id="branchInput" placeholder="main" value="main" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-  </div>
-
-  <!-- Selección de archivos -->
-  <div class="card">
-    <div class="card-title">📎 Seleccionar archivos</div>
-    <input type="file" id="fileInput" multiple>
-    <div class="file-picker" id="filePicker">
-      Toca para seleccionar cualquier archivo<br>
-      <span style="font-size:0.75rem;">Selección múltiple, sin restricción de tipo</span>
-    </div>
-    <ul class="file-list" id="fileList"></ul>
-    <button class="btn-primary" id="uploadBtn" style="margin-top:12px;" disabled>Subir a GitHub</button>
-    <div class="status" id="status"></div>
-    <div class="progress-bar hidden" id="progressBar">
-      <div class="progress-fill" id="progressFill"></div>
+  <!-- ===== PANTALLA DE LOGIN ===== -->
+  <div id="loginView">
+    <div class="card">
+      <div class="card-title">🔑 Iniciar sesión</div>
+      <label for="tokenInput">Token de acceso personal (Fine-grained)</label>
+      <input type="password" id="tokenInput" placeholder="github_pat_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <div class="hint">
+        Permisos necesarios: <strong>Contents: Read and write</strong> y <strong>Metadata: Read</strong>.
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Crear Token →</a>
+      </div>
+      <button class="btn-primary" id="loginBtn">Entrar</button>
+      <div class="status" id="loginStatus"></div>
     </div>
   </div>
 
-  <div class="app-footer">El Token solo se guarda en sessionStorage del dispositivo; se borra al cerrar el navegador</div>
+  <!-- ===== PANTALLA PRINCIPAL ===== -->
+  <div id="mainView" class="hidden">
+    <!-- Barra de usuario -->
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+      <div>
+        <span style="font-size:0.8rem;color:#8b949e;">Conectado como</span>
+        <strong id="userName" style="color:#f0f6fc;margin-left:6px;">—</strong>
+      </div>
+      <button class="btn-secondary btn-sm" id="logoutBtn">Salir</button>
+    </div>
+
+    <!-- Pestañas -->
+    <div class="nav-tabs">
+      <button id="tabRepos" class="active">📁 Repos</button>
+      <button id="tabFiles" class="hidden">📂 Archivos</button>
+    </div>
+
+    <!-- ===== VISTA REPOSITORIOS ===== -->
+    <div id="reposView">
+      <div class="card">
+        <div class="card-title">
+          <span>Tus repositorios</span>
+          <button class="btn-secondary btn-sm" id="refreshReposBtn">↻</button>
+        </div>
+        <ul class="repo-list" id="repoList">
+          <li style="text-align:center;color:#8b949e;cursor:default;">Cargando repositorios...</li>
+        </ul>
+        <div class="status" id="repoStatus"></div>
+      </div>
+    </div>
+
+    <!-- ===== VISTA ARCHIVOS ===== -->
+    <div id="filesView" class="hidden">
+      <!-- Info del repo seleccionado -->
+      <div class="card" style="padding:12px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.7rem;color:#8b949e;">Repositorio</div>
+            <strong id="currentRepoName" style="color:#f0f6fc;font-size:0.9rem;">—</strong>
+          </div>
+          <button class="btn-secondary btn-sm" id="backToReposBtn">← Repos</button>
+        </div>
+        <div class="breadcrumb" id="breadcrumb" style="margin-top:8px;margin-bottom:0;"></div>
+      </div>
+
+      <!-- Navegador de archivos -->
+      <div class="card">
+        <div class="card-title">Contenido</div>
+        <ul class="file-browser" id="fileBrowser">
+          <li style="justify-content:center;color:#8b949e;">Selecciona un repositorio</li>
+        </ul>
+        <div class="status" id="fileStatus"></div>
+      </div>
+
+      <!-- Subir archivos -->
+      <div class="card">
+        <div class="card-title">📤 Subir archivos a la carpeta actual</div>
+        <input type="file" id="fileInput" multiple>
+        <div class="file-picker" id="filePicker">
+          Toca para seleccionar cualquier archivo<br>
+          <span style="font-size:0.7rem;">Sin restricción de tipo</span>
+        </div>
+        <ul class="upload-list" id="uploadList"></ul>
+        <button class="btn-primary" id="uploadBtn" style="margin-top:8px;" disabled>Subir a GitHub</button>
+        <div class="status" id="uploadStatus"></div>
+        <div class="progress-bar hidden" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <!-- Editor de archivos -->
+      <div id="editorCard" class="card hidden">
+        <div class="editor-header">
+          <span class="editor-filename" id="editorFilename">—</span>
+          <button class="btn-secondary btn-sm" id="closeEditorBtn">✕</button>
+        </div>
+        <div class="breadcrumb" id="editorPath"></div>
+        <textarea id="editorContent" placeholder="Contenido del archivo..."></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn-secondary" id="cancelEditBtn">Cancelar</button>
+          <button class="btn-primary" id="saveEditBtn">Guardar cambios</button>
+        </div>
+        <div class="status" id="editStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-footer">Token guardado solo en sessionStorage · Se borra al cerrar el navegador</div>
 </div>
 
 <script>
 (function() {
   'use strict';
-
   const $ = id => document.getElementById(id);
 
-  const tokenInput = $('tokenInput');
-  const ownerInput = $('ownerInput');
-  const repoInput = $('repoInput');
-  const branchInput = $('branchInput');
-  const fileInput = $('fileInput');
-  const filePicker = $('filePicker');
-  const fileList = $('fileList');
-  const uploadBtn = $('uploadBtn');
-  const statusEl = $('status');
-  const progressBar = $('progressBar');
-  const progressFill = $('progressFill');
-
+  // ---------- Estado global ----------
+  let token = '';
+  let currentUser = '';
+  let currentRepo = null;      // { owner, name, defaultBranch }
+  let currentPath = '';         // ruta actual dentro del repo (vacío = raíz)
   let selectedFiles = [];
-  let currentToken = '';
-
-  // ---------- Persistencia (solo sessionStorage) ----------
-  function loadConfig() {
-    currentToken = sessionStorage.getItem('gh_token') || '';
-    ownerInput.value = sessionStorage.getItem('gh_owner') || '';
-    repoInput.value = sessionStorage.getItem('gh_repo') || '';
-    branchInput.value = sessionStorage.getItem('gh_branch') || 'main';
-    if (currentToken) {
-      tokenInput.value = '••••••••••••••••';
-      tokenInput.dataset.saved = 'true';
-    }
-  }
-
-  function saveConfig() {
-    sessionStorage.setItem('gh_owner', ownerInput.value.trim());
-    sessionStorage.setItem('gh_repo', repoInput.value.trim());
-    sessionStorage.setItem('gh_branch', branchInput.value.trim() || 'main');
-  }
-
-  // ---------- Guardar Token ----------
-  $('saveTokenBtn').addEventListener('click', function() {
-    const raw = tokenInput.value.trim();
-    if (!raw || raw === '••••••••••••••••') {
-      showStatus('Ingresa un Token válido', 'error');
-      return;
-    }
-    currentToken = raw;
-    sessionStorage.setItem('gh_token', raw);
-    tokenInput.value = '••••••••••••••••';
-    tokenInput.dataset.saved = 'true';
-    showStatus('Token guardado (válido en esta sesión)', 'success');
-  });
-
-  // Al enfocar el campo del token, si ya estaba guardado se limpia para reingresar
-  tokenInput.addEventListener('focus', function() {
-    if (this.dataset.saved === 'true') {
-      this.value = '';
-      this.dataset.saved = 'false';
-    }
-  });
-
-  // ---------- Selección de archivos ----------
-  filePicker.addEventListener('click', () => fileInput.click());
-
-  fileInput.addEventListener('change', function() {
-    const newFiles = Array.from(this.files);
-    if (newFiles.length === 0) return;
-
-    // Evitar duplicados por nombre
-    const existingNames = new Set(selectedFiles.map(f => f.name));
-    newFiles.forEach(f => {
-      if (!existingNames.has(f.name)) {
-        selectedFiles.push(f);
-        existingNames.add(f.name);
-      }
-    });
-
-    this.value = '';
-    renderFileList();
-  });
-
-  function renderFileList() {
-    fileList.innerHTML = '';
-    if (selectedFiles.length === 0) {
-      filePicker.classList.remove('has-files');
-      filePicker.innerHTML = 'Toca para seleccionar cualquier archivo<br><span style="font-size:0.75rem;">Selección múltiple, sin restricción de tipo</span>';
-      uploadBtn.disabled = true;
-      return;
-    }
-
-    filePicker.classList.add('has-files');
-    filePicker.innerHTML = `Has seleccionado <strong>${selectedFiles.length}</strong> archivo(s)<br><span style="font-size:0.75rem;">Toca para añadir más</span>`;
-
-    selectedFiles.forEach((file, idx) => {
-      const li = document.createElement('li');
-      const sizeStr = file.size < 1024 ? file.size + ' B'
-        : file.size < 1048576 ? (file.size / 1024).toFixed(1) + ' KB'
-        : (file.size / 1048576).toFixed(1) + ' MB';
-
-      li.innerHTML = `<span>${escapeHtml(file.name)}<span class="size">${sizeStr}</span></span>`;
-      const rmBtn = document.createElement('button');
-      rmBtn.className = 'remove';
-      rmBtn.textContent = '×';
-      rmBtn.addEventListener('click', () => {
-        selectedFiles.splice(idx, 1);
-        renderFileList();
-      });
-      li.appendChild(rmBtn);
-      fileList.appendChild(li);
-    });
-
-    updateUploadBtnState();
-  }
-
-  function updateUploadBtnState() {
-    const ready = currentToken &&
-      ownerInput.value.trim() &&
-      repoInput.value.trim() &&
-      selectedFiles.length > 0;
-    uploadBtn.disabled = !ready;
-  }
-
-  // Escuchar cambios en la configuración del repositorio
-  [ownerInput, repoInput, branchInput].forEach(el => {
-    el.addEventListener('input', function() {
-      saveConfig();
-      updateUploadBtnState();
-    });
-  });
+  let currentEditFile = null;   // { path, sha, name }
 
   // ---------- Utilidades ----------
+  function api(path, options = {}) {
+    const url = path.startsWith('http') ? path : `https://api.github.com${path}`;
+    return fetch(url, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(options.headers || {})
+      }
+    });
+  }
+
+  function showStatus(el, msg, type) {
+    el.textContent = msg;
+    el.className = 'status ' + type;
+  }
+
+  function hideStatus(el) { el.className = 'status'; }
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
   }
 
-  function showStatus(msg, type) {
-    statusEl.textContent = msg;
-    statusEl.className = 'status ' + type;
-  }
-
-  function hideStatus() {
-    statusEl.className = 'status';
-  }
-
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        // reader.result es data:...;base64,xxxx
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = () => reject(new Error('Error al leer el archivo: ' + file.name));
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('Error al leer: ' + file.name));
       reader.readAsDataURL(file);
     });
   }
 
-  function setProgress(current, total) {
-    progressBar.classList.remove('hidden');
-    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-    progressFill.style.width = pct + '%';
-    if (current >= total) {
-      setTimeout(() => { progressBar.classList.add('hidden'); }, 600);
-    }
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
   }
 
-  // ---------- Lógica central de subida ----------
-  async function uploadFile(owner, repo, branch, file, index, total) {
-    const base64Content = await fileToBase64(file);
-
-    // Añadir prefijo de marca temporal para evitar colisiones de nombres
-    const now = new Date();
-    const ts = now.getFullYear().toString()
-      + String(now.getMonth() + 1).padStart(2, '0')
-      + String(now.getDate()).padStart(2, '0')
-      + '_'
-      + String(now.getHours()).padStart(2, '0')
-      + String(now.getMinutes()).padStart(2, '0')
-      + String(now.getSeconds()).padStart(2, '0');
-
-    // Conservar el nombre original con prefijo de marca temporal
-    const safeName = file.name.replace(/[\/\\]/g, '_');
-    const path = `${ts}_${safeName}`;
-
-    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}`;
-
-    const body = {
-      message: `Subida de ${file.name} vía Subidor GH PWA`,
-      content: base64Content,
-      branch: branch || 'main'
-    };
-
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${currentToken}`,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!resp.ok) {
-      let errMsg = `HTTP ${resp.status}`;
-      try {
-        const errData = await resp.json();
-        errMsg = errData.message || errMsg;
-      } catch (e) { /* ignorar */ }
-      throw new Error(`${file.name}: ${errMsg}`);
+  // =====================================================
+  //  LOGIN
+  // =====================================================
+  $('loginBtn').addEventListener('click', async function() {
+    const raw = $('tokenInput').value.trim();
+    if (!raw) {
+      showStatus($('loginStatus'), 'Ingresa un Token válido', 'error');
+      return;
     }
 
-    return await resp.json();
-  }
+    this.disabled = true;
+    this.textContent = 'Verificando...';
+    showStatus($('loginStatus'), 'Conectando con GitHub...', 'info');
 
-  // ---------- Botón de subida ----------
-  uploadBtn.addEventListener('click', async function() {
-    const owner = ownerInput.value.trim();
-    const repo = repoInput.value.trim();
-    const branch = branchInput.value.trim() || 'main';
+    try {
+      const resp = await api('/user', { headers: { 'Authorization': `Bearer ${raw}` } });
+      if (!resp.ok) throw new Error('Token inválido o sin permisos');
+      const user = await resp.json();
 
-    if (!currentToken) { showStatus('Primero guarda un Token', 'error'); return; }
-    if (!owner || !repo) { showStatus('Completa el usuario y el nombre del repositorio', 'error'); return; }
-    if (selectedFiles.length === 0) { showStatus('Selecciona al menos un archivo', 'error'); return; }
+      token = raw;
+      currentUser = user.login;
+      sessionStorage.setItem('gh_token', raw);
 
-    uploadBtn.disabled = true;
-    uploadBtn.textContent = 'Subiendo...';
-    hideStatus();
-    setProgress(0, selectedFiles.length);
-
-    let successCount = 0;
-    let failCount = 0;
-    const errors = [];
-
-    // Subida secuencial (evita límites de velocidad de GitHub)
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      try {
-        showStatus(`Subiendo (${i + 1}/${selectedFiles.length}): ${file.name}`, 'info');
-        await uploadFile(owner, repo, branch, file, i, selectedFiles.length);
-        successCount++;
-      } catch (err) {
-        failCount++;
-        errors.push(err.message);
-      }
-      setProgress(i + 1, selectedFiles.length);
+      $('userName').textContent = user.login;
+      $('loginView').classList.add('hidden');
+      $('mainView').classList.remove('hidden');
+      loadRepos();
+    } catch (err) {
+      showStatus($('loginStatus'), 'Error: ' + err.message, 'error');
+    } finally {
+      this.disabled = false;
+      this.textContent = 'Entrar';
     }
-
-    // Resultado
-    if (failCount === 0) {
-      showStatus(`✅ Los ${successCount} archivos se subieron correctamente`, 'success');
-      selectedFiles = [];
-      renderFileList();
-    } else if (successCount === 0) {
-      showStatus(`❌ Todos fallaron: ${errors[0]}`, 'error');
-    } else {
-      showStatus(`⚠️ ${successCount} correctos, ${failCount} fallidos. ${errors[0]}`, 'error');
-    }
-
-    uploadBtn.textContent = 'Subir a GitHub';
-    updateUploadBtnState();
   });
 
-  // ---------- Inicialización ----------
-  loadConfig();
-  updateUploadBtnState();
+  // ---------- Logout ----------
+  $('logoutBtn').addEventListener('click', function() {
+    sessionStorage.removeItem('gh_token');
+    token = ''; currentUser = ''; currentRepo = null;
+    $('loginView').classList.remove('hidden');
+    $('mainView').classList.add('hidden');
+    $('tokenInput').value = '';
+    hideStatus($('loginStatus'));
+  });
 
-  // Registrar Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+  // =====================================================
+  //  LISTAR REPOSITORIOS
+  // =====================================================
+  async function loadRepos() {
+    const list = $('repoList');
+    list.innerHTML = '<li style="text-align:center;color:#8b949e;cursor:default;">Cargando...</li>';
+
+    try {
+      const resp = await api('/user/repos?per_page=100&sort=updated');
+      if (!resp.ok) throw new Error('No se pudieron cargar los repositorios');
+      const repos = await resp.json();
+
+      if (repos.length === 0) {
+        list.innerHTML = '<li style="text-align:center;color:#8b949e;cursor:default;">No tienes repositorios</li>';
+        return;
+      }
+
+      list.innerHTML = '';
+      repos.forEach(repo => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div class="repo-name">${escapeHtml(repo.name)}</div>
+          <div class="repo-meta">
+            ${repo.private ? '<span class="private-badge">🔒 Privado</span> · ' : ''}
+            ${escapeHtml(repo.default_branch)} · ${repo.owner.login}
+          </div>
+        `;
+        li.addEventListener('click', () => selectRepo(repo));
+        list.appendChild(li);
+      });
+    } catch (err) {
+      showStatus($('repoStatus'), err.message, 'error');
+      list.innerHTML = '<li style="text-align:center;color:#f85149;cursor:default;">Error al cargar</li>';
+    }
   }
 
-  // Guardar configuración antes de cerrar la página (sin el Token)
-  window.addEventListener('beforeunload', saveConfig);
+  $('refreshReposBtn').addEventListener('click', loadRepos);
 
-})();
-</script>
-</body>
-</html>
+  // =====================================================
+  //  SELECCIONAR REPOSITORIO → VER ARCHIVOS
+  // =====================================================
+  function selectRepo(repo) {
+    currentRepo = {
+      owner: repo.owner.login,
+      name: repo.name,
+      defaultBranch: repo.default_branch
+    };
+    currentPath = '';
+    $('currentRepoName').textContent = `${currentRepo.owner}/${currentRepo.name}`;
+
+    // Cambiar pestaña activa
+    $('tabRepos').classList.remove('active');
+    $('tabFiles').classList.add('active');
+    $('tabFiles').classList.remove('hidden');
+    $('reposView').classList.add('hidden');
+    $('filesView').classList.remove('hidden');
+    $('editorCard').classList.add('hidden');
+    selectedFiles = [];
+    renderUploadList();
+
+    loadContents();
+  }
+
+  // Volver a repos
+  $('backToReposBtn').addEventListener('click', function() {
+    $('tabFiles').classList.remove('active');
+    $('tabRepos').classList.add('active');
+    $('filesView').classList.add('hidden');
+    $('reposView').classList.remove('hidden');
+    $('editorCard').classList.add('hidden');
+  });
+
+  $('tabRepos').addEventListener('click', function() {
+    $('tabFiles').classList.remove('active');
+    this.classList.add('active');
+    $('filesView').classList.add('hidden');
+    $('reposView').classList.remove('hidden');
+  });
+
+  $('tabFiles').addEventListener('click', function() {
+    if (!currentRepo) return;
+    $('tabRepos').classList.remove('active');
+    this.classList.add('active');
+    $('reposView').classList.add('hidden');
+    $('filesView').classList.remove('hidden');
+  });
+
+  // =====================================================
+  //  CARGAR CONTENIDO DE UNA CARPETA
+  // =====================================================
+  async function loadContents() {
+    if (!currentRepo) return;
+    const browser = $('fileBrowser');
+    browser.innerHTML = '<li style="justify-content:center;color:#8b949e;">Cargando...</li>';
+    hideStatus($('fileStatus'));
+
+    // Actualizar breadcrumb
+    const crumbs = currentPath ? currentPath.split('/') : [];
+    $('breadcrumb').innerHTML = crumbs.length
+      ? `<span style="cursor:pointer;color:#58a6ff;" onclick="goToPath('')">raíz</span> / ` +
+        crumbs.map((c, i) =>
+          `<span style="cursor:pointer;color:#58a6ff;" onclick="goToPath('${crumbs.slice(0, i+1).join('/')}')">${escapeHtml(c)}</span>`
+        ).join(' / ')
+      : 'raíz';
+
+    const pathParam = currentPath ? `/${encodeURIComponent(currentPath).replace(/%2F/g, '/')}` : '';
+    try {
+      const resp = await api(`/repos/${currentRepo.owner}/${currentRepo.name}/contents${pathParam}?ref=${currentRepo.defaultBranch}`);
+      if (!resp.ok) {
+        if (resp.status === 404) throw new Error('Carpeta no encontrada o repositorio vacío');
+        throw new Error('Error al cargar el contenido');
+      }
+
+      let items = await resp.json();
+      if (!Array.isArray(items)) items = [items]; // es un archivo, no carpeta
+
+      browser.innerHTML = '';
+      if (items.length === 0) {
+        browser.innerHTML = '<li style="justify-content:center;color:#8b949e;">Carpeta vacía</li>';
+        return;
+      }
+
+      // Ordenar: carpetas primero
+      items.sort((a, b) => {
+        if (a.type === 'dir' && b.type !== 'dir') return -1;
+        if (a.type !== 'dir' && b.type === 'dir') return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      items.forEach(item => {
+        const li = document.createElement('li');
+        const isDir = item.type === 'dir';
+        const icon = isDir ? '📁' : '📄';
+        const sizeStr = !isDir && item.size ? formatSize(item.size) : '';
+
+        li.innerHTML = `
+          <span class="file-icon">${icon}</span>
+          <span class="file-name">${escapeHtml(item.name)}</span>
+          <span class="file-size">${sizeStr}</span>
+        `;
+
+        // Botón editar (solo archivos de texto pequeños)
+        if (!isDir && item.size < 500000) {
+          const actions = document.createElement('div');
+          actions.className = 'file-actions';
+          const editBtn = document.createElement('button');
+          editBtn.className = 'btn-secondary btn-sm';
+          editBtn.textContent = '✏️';
+          editBtn.title = 'Editar';
+          editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditor(item);
+          });
+          actions.appendChild(editBtn);
+          li.appendChild(actions);
+        }
+
+        li.addEventListener('click', () => {
+          if (isDir) {
+            currentPath = item.path;
+            loadContents();
+          } else {
+            // Si es archivo y tiene botón de editar, ya manejado arriba
+            // Si no, abrir en GitHub
+            window.open(item.html_url, '_blank');
+          }
+        });
+
+        browser.appendChild(li);
+      });
+    } catch (err) {
+      showStatus($('fileStatus'), err.message, 'error');
+      browser.innerHTML = '<li style="justify-content:center;color:#f85149;">Error</li>';
+    }
+  }
+
+  // Función global para breadcrumb
+  window.goToPath = function(path) {
+    currentPath = path;
+    loadContents();
+  };
+
+  // =====================================================
+  //  EDITOR DE ARCHIVOS
+  // =====================================================
+  async function openEditor(file) {
+    hideStatus($('editStatus'));
+    $('editorFilename').textContent = file.name;
+    $('editorPath').textContent = file.path;
+    $('editorContent').value = 'Cargando...';
+    $('editorCard').classList.remove('hidden');
+    $('editorContent').disabled = true;
+
+    try {
+      // Pedir contenido raw
+      const resp = await api(`/repos/${currentRepo.owner}/${currentRepo.name}/contents/${file.path}?ref=${currentRepo.defaultBranch}`);
+      if (!resp.ok) throw new Error('No se pudo leer el archivo');
+      const data = await resp.json();
+
+      // La API devuelve base64, decodificar
+      const binary = atob(data.content.replace(/\n/g, ''));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const text = new TextDecoder('utf-8').decode(bytes);
+
+      $('editorContent').value = text;
+      currentEditFile = { path: file.path, sha: data.sha, name: file.name };
+    } catch (err) {
+      $('editorContent').value = 'Error: ' + err.message;
+    } finally {
+      $('editorContent').disabled = false;
+    }
+  }
+
+  function closeEditor() {
+    $('editorCard').classList.add('hidden');
+    currentEditFile = null;
+    hideStatus($('editStatus'));
+  }
+
+  $('closeEditorBtn').addEventListener('click', closeEditor);
+  $('cancelEditBtn').addEventListener('click', closeEditor);
+
+  $('saveEditBtn').addEventListener('click', async function() {
+    if (!currentEditFile || !currentRepo) return;
+    const content = $('editorContent').value;
+    this.disabled = true;
+    this.textContent = 'Guardando...';
+    hideStatus($('editStatus'));
+
+    try {
+      // Codificar a base64 (soporta UTF-8)
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(content);
+      let binary = '';
+      bytes.forEach(b => binary += String.fromCharCode(b));
+      const base64 = btoa(binary);
+
+      const url = `/repos/${currentRepo.owner}/${currentRepo.name}/contents/${currentEditFile.path}`;
+      const body = {
+        message: `Editar ${currentEditFile.name} vía Panel GitHub`,
+        content: base64,
+        sha: currentEditFile.sha,
+        branch: currentRepo.defaultBranch
+      };
+
+      const resp = await api(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || `Error HTTP ${resp.status}`);
+      }
+
+      showStatus($('editStatus'), '✅ Archivo guardado correctamente', 'success');
+      // Recargar para actualizar SHA
+      setTimeout(() => { loadContents(); closeEditor(); }, 1000);
+    } catch (err) {
+      showStatus($('editStatus'), '❌ ' + err.message, 'error');
+    } finally {
+      this.disabled = false;
+      this.textContent = 'Guardar cambios';
+    }
+  });
+
+  // =====================================================
+  //  SUBIR ARCHIVOS NUEVOS
+  // =====================================================
+  $('filePicker').addEventListener('click', () => $('fileInput').click());
+
+  $('fileInput').addEventListener('change', function() {
+    const newFiles = Array.from(this.files);
+    if (!newFiles.length) return;
+    const existing = new Set(selectedFiles.map(f => f.name));
+    newFiles.forEach(f => {
+      if (!existing.has(f.name)) { selectedFiles.push(f); existing.add(f.name); }
+    });
+    this.value = '';
+    renderUploadList();
+  });
+
+  function renderUploadList() {
+    const list = $('uploadList');
+    list.innerHTML = '';
+    const picker = $('filePicker');
+
+    if (selectedFiles.length === 0) {
+      picker.classList.remove('has-files');
+      picker.innerHTML = 'Toca para seleccionar cualquier archivo<br><span style="font-size:0.7rem;">Sin restricción de tipo</span>';
+      $('uploadBtn').disabled = true;
+      return;
+    }
+
+    picker.classList.add('has-files');
+    picker.innerHTML = `${selectedFiles.length} archivo(s) seleccionado(s)<br><span style="font-size:0.7rem;">Toca para añadir más</span>`;
+    $('uploadBtn').disabled = false;
+
+    selectedFiles.forEach((file, idx) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${escapeHtml(file.name)} <span style="color:#8b949e;font-size:0.65rem;">${formatSize(file.size)}</span></span>`;
+      const rm = document.createElement('button');
+      rm.className = 'remove';
+      rm.textContent = '×';
+      rm.addEventListener('click', () => {
+        selectedFiles.splice(idx, 1);
+        renderUploadList();
+      });
+      li.appendChild(rm);
+      list.appendChild(li);
+    });
+  }
+
+  $('uploadBtn').addEventListener('click', async function() {
+    if (!currentRepo || selectedFiles.length === 0) return;
+    this.disabled = true;
+    this.textContent = 'Subiendo...';
+    hideStatus($('uploadStatus'));
+    const progressBar = $('progressBar');
+    const progressFill = $('progressFill');
+    progressBar.classList.remove('hidden');
+
+    let success = 0, fail = 0, errors = [];
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      showStatus($('uploadStatus'), `Subiendo (${i+1}/${selectedFiles.length}): ${file.name}`, 'info');
+      progressFill.style.width = Math.round(((i) / selectedFiles.length) * 100) + '%';
+
+      try {
+        const base64 = await fileToBase64(file);
+        const safeName = file.name.replace(/[\/\\]/g, '_');
+        const path = currentPath ? `${currentPath}/${safeName}` : safeName;
+
+        const url = `/repos/${currentRepo.owner}/${currentRepo.name}/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}`;
+        const body = {
+          message: `Subir ${file.name} vía Panel GitHub`,
+          content: base64,
+          branch: currentRepo.defaultBranch
+        };
+
+        const resp = await api(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.message || `HTTP ${resp.status}`);
+        }
+        success++;
+      } catch (err) {
+        fail++;
+        errors.push(err.message);
+      }
+      progressFill.style.width = Math.round(((i+1) / selectedFiles.length) * 100) + '%';
+    }
+
+    setTimeout(() => progressBar.classList.add('hidden'), 600);
+
+    if (fail === 0) {
+      showStatus($('uploadStatus'), `✅ ${success} archivo(s) subido(s) correctamente`, 'success');
+      selectedFiles = [];
+      renderUploadList();
+      loadContents();
+    } else if (success === 0) {
+      showStatus($('uploadStatus'), `❌ Error: ${errors[0]}`, 'error');
+    } else {
+      showStatus($('uploadStatus'), `⚠️ ${success} correcto(s), ${fail} fallido(s). ${errors[0]}`, 'error');
+    }
+
+    this.disabled = false;
+    this.textContent = 'Subir a GitHub';
+  });
+
+  // =====================================================
+  //  INICIALIZACIÓN
+  // =====================================================
+  // Intentar restaurar sesión desde sessionStorage
+  const savedToken = sessionStorage.getItem('gh_token');
+  if (savedToken) {
+    token = savedToken;
+    api('/user').then(resp => {
+      if (resp.ok) return resp.json();
+      throw new Error('Token expirado');
+    }).then(user => {
+      currentUser = user.login;
+      $('userName').textContent = user.login;
+      $('loginView').classList.add('hidden');
+      $('mainView').classList.remove('hidden');
+      loadRepos();
+    }).catch(() => {
+      sessionStorage.removeItem('gh_token');
+      token = '';
