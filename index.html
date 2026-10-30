@@ -7,9 +7,11 @@
   <meta name="theme-color" content="#10131b">
   <meta name="description" content="Administrador móvil de repositorios GitHub">
   <title>MUGH | GitHub Mobile Manager</title>
+
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
 </head>
+
 <body>
 
 <header class="header">
@@ -20,7 +22,7 @@
       <small>GitHub Mobile Manager</small>
     </div>
   </div>
-  <button id="settingsBtn" class="icon-btn" title="Configuración">⚙</button>
+  <button id="settingsBtn" class="icon-btn">⚙</button>
 </header>
 
 <main class="container">
@@ -28,11 +30,16 @@
   <section id="loginSection" class="panel">
     <h2>Conectar con GitHub</h2>
     <p>Introduce tu token de acceso personal.</p>
+
     <input id="tokenInput" type="password"
-      placeholder="ghp_... o github_pat_..." autocomplete="off">
-    <button id="connectBtn" class="primary full">Conectar</button>
+      placeholder="github_pat_..." autocomplete="off">
+
+    <button id="connectBtn" class="primary full">
+      Conectar
+    </button>
+
     <small class="muted">
-      Necesitas un token con permisos Contents: Read and write.
+      Permisos necesarios: Contents Read and write.
     </small>
   </section>
 
@@ -43,7 +50,9 @@
         <small>Conectado como</small>
         <strong id="username">GitHub</strong>
       </div>
-      <button id="logoutBtn" class="danger-outline">Desconectar</button>
+      <button id="logoutBtn" class="danger-outline">
+        Desconectar
+      </button>
     </div>
 
     <section class="panel">
@@ -51,6 +60,7 @@
         <h2>Repositorio</h2>
         <button id="refreshReposBtn" class="icon-btn">↻</button>
       </div>
+
       <select id="repoSelect">
         <option value="">Seleccionar repositorio</option>
       </select>
@@ -59,7 +69,10 @@
         <select id="branchSelect" disabled>
           <option value="">Rama</option>
         </select>
-        <button id="openRepoBtn" class="primary" disabled>Abrir</button>
+
+        <button id="openRepoBtn" class="primary" disabled>
+          Abrir
+        </button>
       </div>
     </section>
 
@@ -74,57 +87,116 @@
         <div class="breadcrumb" id="breadcrumb"></div>
 
         <div id="fileList" class="file-list">
-          <div class="empty">Selecciona un repositorio.</div>
+          <div class="empty">
+            Selecciona un repositorio.
+          </div>
         </div>
       </section>
 
       <section class="panel">
+
         <h2>Administrar archivos</h2>
 
         <div class="upload-area">
+
           <div class="upload-icon">☁</div>
-          <h3>Subir archivos</h3>
-          <p>Documentos, APK, ZIP, imágenes, código y cualquier otro formato.</p>
 
-          <input type="file" id="fileInput" multiple hidden>
+          <h3>Subida universal de archivos</h3>
 
-          <button id="selectFilesBtn" class="primary full">
-            📁 Seleccionar archivos
-          </button>
+          <p>
+            Selecciona archivos directamente desde el almacenamiento
+            de tu teléfono Android.
+          </p>
+
+          <div style="text-align:left; margin:15px 0;">
+
+            <input
+              type="file"
+              id="fileInput"
+              accept="*/*"
+              multiple
+              aria-label="Seleccionar cualquier tipo de archivo"
+              style="
+                position:absolute;
+                left:-10000px;
+                top:0;
+                width:1px;
+                height:1px;
+                opacity:0;
+              "
+            >
+
+            <button
+              type="button"
+              id="selectFilesBtn"
+              class="primary full"
+            >
+              📁 EXAMINAR ARCHIVOS DEL TELÉFONO
+            </button>
+
+          </div>
+
+          <p style="font-size:12px;">
+            Formatos permitidos: TODOS.
+            APK · ZIP · PDF · HTML · JS · CSS · JSON · TXT
+            · Imágenes · Documentos y más.
+          </p>
 
           <div id="selectedFiles" class="selected-files"></div>
 
-          <button id="uploadBtn" class="success full" disabled>
-            Subir a GitHub
+          <button
+            id="uploadBtn"
+            class="success full"
+            disabled
+          >
+            ☁ SUBIR A GITHUB
           </button>
+
         </div>
 
         <div class="divider"></div>
 
         <h3>Crear carpeta</h3>
-        <input id="folderName" placeholder="Nombre de la carpeta">
+
+        <input
+          id="folderName"
+          placeholder="Nombre de la carpeta"
+        >
+
         <button id="createFolderBtn" class="secondary full">
           ＋ Crear carpeta
         </button>
+
       </section>
 
       <section id="editorSection" class="panel" hidden>
+
         <div class="section-heading">
           <h2>Editor de texto</h2>
           <button id="closeEditorBtn" class="icon-btn">✕</button>
         </div>
+
         <p id="editorFilename" class="muted"></p>
-        <textarea id="editorContent" rows="14"
-          spellcheck="false"></textarea>
+
+        <textarea
+          id="editorContent"
+          rows="14"
+          spellcheck="false"
+        ></textarea>
+
         <button id="saveEditorBtn" class="success full">
           Guardar cambios
         </button>
+
       </section>
 
     </section>
+
   </section>
 
-  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <div id="status" class="status"
+    role="status" aria-live="polite">
+  </div>
 
 </main>
 
@@ -132,6 +204,7 @@
   MUGH · GitHub Mobile Manager
 </footer>
 
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
+
 </body>
 </html>
