@@ -2,565 +2,771 @@
 (function () {
   "use strict";
 
-  var API = "https://api.github.com";
-  var token = "";
-  var username = "";
-  var repositories = [];
-  var currentRepo = null;
-  var currentPath = "";
-  var currentFile = null;
-  var currentBranch = "";
-  var currentItems = [];
-  var busy = false;
+  const API = "https://api.github.com";
+  const $ = id => document.getElementById(id);
 
-  function $(id) {
-    return document.getElementById(id);
-  }
+  let token = sessionStorage.getItem("mugh_token") || "";
+  let user = null;
+  let currentRepo = null;
+  let currentBranch = "";
+  let currentPath = "";
+  let selectedFiles = [];
+  let editingFile = null;
+  let busy = false;
 
-  function status(message) {
-    $("status").textContent = message || "";
-  }
+  const elements = {
+    login: $("loginSection"),
+    main: $("mainSection"),
+    token: $("tokenInput"),
+    connect: $("connectBtn"),
+    username: $("username"),
+    repos: $("repoSelect"),
+    branches: $("branchSelect"),
+    open: $("openRepoBtn"),
+    explorer: $("explorerSection"),
+    files: $("fileList"),
+    breadcrumb: $("breadcrumb"),
+    fileInput: $("fileInput"),
+    selected: $("selectedFiles"),
+    upload: $("uploadBtn"),
+    status: $("status"),
+    editor: $("editorSection"),
+    editorContent: $("editorContent")
+  };
 
-  function headers(extra) {
-    var result = {
-      "Accept": "application/vnd.github+json",
-      "Authorization": "Bearer " + token,
-      "X-GitHub-Api-Version": "2022-11-28"
-    };
-
-    Object.keys(extra || {}).forEach(function (key) {
-      result[key] = extra[key];
+  async function request(url, options) {
+    const response = await fetch(API + url, {
+      ...options,
+      headers: {
+        "Accept": "application/vnd.github+json",
+        "Authorization": "Bearer " + token,
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(options && options.headers || {})
+      }
     });
 
-    return result;
-  }
+    const data = response.status === 204
+      ? null
+      : await response.json().catch(() => null);
 
-  function request(url, options) {
-    options = options || {};
-    options.headers = headers(options.headers);
-
-    return fetch(API + url, options).then(function (response) {
-      if (response.status === 204) return null;
-
-      return response.text().then(function (text) {
-        var data = {};
-
-        try {
-          data = text ? JSON.parse(text) : {};
-        } catch (_) {}
-
-        if (!response.ok) {
-          throw new Error(
-            data.message || ("Error HTTP " + response.status)
-          );
-        }
-
-        return data;
-      });
-    });
-  }
-
-  function encodePath(path) {
-    return path.split("/").map(function (part) {
-      return encodeURIComponent(part);
-    }).join("/");
-  }
-
-  function repoUrl(suffix) {
-    return "/repos/" +
-      encodeURIComponent(currentRepo.owner.login) + "/" +
-      encodeURIComponent(currentRepo.name) + (suffix || "");
-  }
-
-  function base64FromBytes(bytes) {
-    var binary = "";
-    var chunkSize = 8192;
-
-    for (var i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(
-        null,
-        bytes.subarray(i, i + chunkSize)
+    if (!response.ok) {
+      throw new Error(
+        data && data.message
+          ? data.message
+          : "Error HTTP " + response.status
       );
     }
 
-    return btoa(binary);
+    return data;
   }
 
-  function textToBase64(text) {
-    return base64FromBytes(new TextEncoder().encode(text));
+  function notify(message, type) {
+    elements.status.textContent = message;
+    elements.status.className = "status show " +
+      (type || "");
+
+    elements.status.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest"
+    });
   }
 
-  function base64ToText(base64) {
-    var binary = atob(base64.replace(/\s/g, ""));
-    var bytes = new Uint8Array(binary.length);
-
-    for (var i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  function clearNotify() {
+    elements.status.textContent = "";
+    elements.status.className = "status";
   }
 
   function setBusy(value) {
     busy = value;
-    $("loginBtn").disabled = value;
-    $("refreshBtn").disabled = value;
+    elements.upload.disabled = value || !selectedFiles.length;
+    elements.connect.disabled = value;
+    elements.createFolderBtn.disabled = value;
   }
 
-  function showWorkspace() {
-    $("loginView").hidden = true;
-    $("workspace").hidden = false;
-    $("userLabel").textContent = "@" + username;
+  function encodePath(path) {
+    return path.split("/").map(encodeURIComponent).join("/");
   }
 
-  function showLogin() {
-    token = "";
-    username = "";
-    repositories = [];
-    currentRepo = null;
-    currentFile = null;
-    currentPath = "";
-    currentBranch = "";
-    currentItems = [];
+  function repoBase() {
+    if (!currentRepo) {
+      throw new Error("Selecciona un repositorio.");
+    }
 
-    $("loginView").hidden = false;
-    $("workspace").hidden = true;
-    $("userLabel").textContent = "Sin sesión";
-    $("token").value = "";
-    $("repoList").replaceChildren();
-    $("fileList").replaceChildren();
-    $("editor").hidden = true;
-    $("repoTitle").textContent = "Selecciona un repositorio";
-    $("pathLabel").textContent = "Archivos y carpetas";
-    $("repoSearch").value = "";
-    $("upBtn").disabled = true;
-    $("newBtn").disabled = true;
-    $("uploadBtn").disabled = true;
-    status("");
+    return "/repos/" + encodeURIComponent(currentRepo.owner.login) +
+      "/" + encodeURIComponent(currentRepo.name);
   }
 
-  function login() {
-    if (busy) return;
+  function contentsUrl(path) {
+    return repoBase() + "/contents/" +
+      (path ? encodePath(path) : "");
+  }
 
-    token = $("token").value.trim();
+  async function connect() {
+    const value = elements.token.value.trim();
 
-    if (!token) {
-      status("Pega tu token antes de iniciar sesión.");
+    if (!value) {
+      notify("Introduce tu token de GitHub.", "error");
       return;
     }
 
-    setBusy(true);
-    status("Verificando token…");
+    token = value;
+    sessionStorage.setItem("mugh_token", token);
 
-    request("/user").then(function (user) {
-      username = user.login;
-      showWorkspace();
-      return loadRepositories();
-    }).then(function () {
-      status("Sesión iniciada correctamente.");
-    }).catch(function (error) {
+    try {
+      setBusy(true);
+
+      const data = await request("/user");
+
+      user = data;
+      elements.username.textContent = data.login;
+
+      elements.login.hidden = true;
+      elements.main.hidden = false;
+
+      await loadRepositories();
+
+      notify("Conexión establecida correctamente.", "success-message");
+
+    } catch (error) {
       token = "";
-      username = "";
-      $("loginView").hidden = false;
-      $("workspace").hidden = true;
-      status("No se pudo iniciar sesión: " + error.message);
-    }).finally(function () {
+      sessionStorage.removeItem("mugh_token");
+      notify("No se pudo conectar: " + error.message, "error");
+    } finally {
       setBusy(false);
-      $("token").value = "";
-    });
-  }
-
-  function loadRepositories() {
-    status("Cargando repositorios…");
-
-    var page = 1;
-    var all = [];
-
-    function nextPage() {
-      return request(
-        "/user/repos?affiliation=owner,collaborator,organization" +
-        "&sort=updated&per_page=100&page=" + page
-      ).then(function (items) {
-        all = all.concat(items);
-
-        if (items.length === 100 && page < 10) {
-          page++;
-          return nextPage();
-        }
-      });
-    }
-
-    return nextPage().then(function () {
-      repositories = all;
-      renderRepositories();
-      status(repositories.length + " repositorios cargados.");
-    });
-  }
-
-  function renderRepositories() {
-    var query = $("repoSearch").value.trim().toLowerCase();
-    var list = $("repoList");
-
-    list.replaceChildren();
-
-    repositories.filter(function (repo) {
-      return (repo.full_name + " " + (repo.description || ""))
-        .toLowerCase().indexOf(query) !== -1;
-    }).forEach(function (repo) {
-      var item = document.createElement("div");
-      item.className = "repo-item";
-
-      var title = document.createElement("strong");
-      title.textContent = repo.full_name;
-
-      var description = document.createElement("small");
-      description.textContent = repo.description || "Sin descripción";
-
-      item.append(title, description);
-
-      item.addEventListener("click", function () {
-        selectRepository(repo);
-      });
-
-      list.appendChild(item);
-    });
-
-    if (!list.children.length) {
-      list.textContent = "No se encontraron repositorios.";
     }
   }
 
-  function selectRepository(repo) {
-    currentRepo = repo;
+  async function loadRepositories() {
+    elements.repos.innerHTML =
+      '<option value="">Seleccionar repositorio</option>';
+
+    let page = 1;
+    let repositories = [];
+
+    while (page <= 10) {
+      const batch = await request(
+        "/user/repos?per_page=100&sort=updated&page=" + page
+      );
+
+      repositories = repositories.concat(batch);
+
+      if (batch.length < 100) break;
+      page++;
+    }
+
+    repositories.forEach(repo => {
+      const option = document.createElement("option");
+
+      option.value = repo.id;
+      option.textContent =
+        repo.full_name + (repo.private ? " 🔒" : "");
+
+      option.dataset.owner = repo.owner.login;
+      option.dataset.name = repo.name;
+      option.dataset.branch = repo.default_branch;
+
+      elements.repos.appendChild(option);
+    });
+
+    notify(repositories.length + " repositorios encontrados.",
+      "success-message");
+  }
+
+  async function selectRepository() {
+    const option = elements.repos.selectedOptions[0];
+
+    if (!option || !option.value) {
+      currentRepo = null;
+      elements.branches.disabled = true;
+      elements.open.disabled = true;
+      return;
+    }
+
+    currentRepo = {
+      id: option.value,
+      owner: { login: option.dataset.owner },
+      name: option.dataset.name,
+      default_branch: option.dataset.branch
+    };
+
+    elements.branches.disabled = true;
+    elements.open.disabled = true;
+    elements.branches.innerHTML = "";
+
+    try {
+      const branches = await request(
+        repoBase() + "/branches?per_page=100"
+      );
+
+      branches.forEach(branch => {
+        const opt = document.createElement("option");
+        opt.value = branch.name;
+        opt.textContent = branch.name;
+        elements.branches.appendChild(opt);
+      });
+
+      elements.branches.value = currentRepo.default_branch;
+      elements.branches.disabled = false;
+      elements.open.disabled = false;
+
+    } catch (error) {
+      notify("Error cargando ramas: " + error.message, "error");
+    }
+  }
+
+  async function openRepository() {
+    currentBranch = elements.branches.value;
+
+    if (!currentBranch) return;
+
     currentPath = "";
-    currentFile = null;
-    currentItems = [];
+    elements.explorer.hidden = false;
+    elements.editor.hidden = true;
 
-    $("repoTitle").textContent = repo.full_name;
-    $("upBtn").disabled = false;
-    $("newBtn").disabled = false;
-    $("uploadBtn").disabled = false;
-    $("editor").hidden = true;
-
-    request(repoUrl("/branches/" + encodeURIComponent(repo.default_branch)))
-      .then(function (branch) {
-        currentBranch = branch.name;
-        return browse("");
-      })
-      .catch(function (error) {
-        status("No se pudo abrir el repositorio: " + error.message);
-      });
+    await loadFiles();
   }
 
-  function browse(path) {
-    currentPath = path || "";
-    currentFile = null;
-    $("pathLabel").textContent = "/" + currentPath;
-    $("fileList").replaceChildren();
-    $("fileList").textContent = "Cargando…";
-    $("editor").hidden = true;
+  function updateBreadcrumb() {
+    elements.breadcrumb.replaceChildren();
 
-    var suffix = "/contents" +
-      (currentPath ? "/" + encodePath(currentPath) : "") +
-      "?ref=" + encodeURIComponent(currentBranch);
+    const root = document.createElement("button");
+    root.textContent = "⌂ " + currentRepo.name;
+    root.onclick = () => navigateTo("");
+    elements.breadcrumb.appendChild(root);
 
-    return request(repoUrl(suffix)).then(function (items) {
-      currentItems = Array.isArray(items) ? items : [items];
-      renderFiles();
-    }).catch(function (error) {
-      $("fileList").replaceChildren();
-      status("No se pudieron cargar los archivos: " + error.message);
+    let accumulated = "";
+
+    currentPath.split("/").filter(Boolean).forEach(part => {
+      accumulated = accumulated
+        ? accumulated + "/" + part
+        : part;
+
+      const path = accumulated;
+      const button = document.createElement("button");
+
+      button.textContent = " / " + part;
+      button.onclick = () => navigateTo(path);
+
+      elements.breadcrumb.appendChild(button);
     });
   }
 
-  function formatSize(size) {
-    if (size == null) return "Archivo";
-    if (size < 1024) return size + " B";
-    if (size < 1048576) return (size / 1024).toFixed(1) + " KB";
-    return (size / 1048576).toFixed(1) + " MB";
+  async function navigateTo(path) {
+    currentPath = path;
+    await loadFiles();
   }
 
-  function renderFiles() {
-    var list = $("fileList");
-    list.replaceChildren();
+  async function loadFiles() {
+    clearNotify();
+    elements.files.innerHTML =
+      '<div class="empty">Cargando archivos...</div>';
 
-    if (currentPath) {
-      var parent = document.createElement("button");
-      parent.className = "secondary";
-      parent.textContent = "↑ Carpeta superior";
-      parent.addEventListener("click", goUp);
-      list.appendChild(parent);
-    }
+    updateBreadcrumb();
 
-    currentItems.sort(function (a, b) {
-      if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    }).forEach(function (file) {
-      var item = document.createElement("div");
-      item.className = "file-item";
+    try {
+      let files = await request(
+        contentsUrl(currentPath) +
+        "?ref=" + encodeURIComponent(currentBranch)
+      );
 
-      var label = document.createElement("span");
-      label.textContent =
-        (file.type === "dir" ? "📁 " : "📄 ") + file.name;
+      if (!Array.isArray(files)) files = [files];
 
-      var kind = document.createElement("span");
-      kind.className = "kind";
-      kind.textContent = file.type === "dir"
-        ? "Carpeta"
-        : formatSize(file.size);
-
-      item.append(label, kind);
-
-      item.addEventListener("click", function () {
-        if (file.type === "dir") {
-          browse(file.path);
-        } else {
-          openFile(file);
+      files.sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === "dir" ? -1 : 1;
         }
+        return a.name.localeCompare(b.name);
       });
 
-      list.appendChild(item);
-    });
+      elements.files.replaceChildren();
 
-    if (!currentItems.length) {
-      var empty = document.createElement("p");
-      empty.className = "muted";
-      empty.textContent = "Carpeta vacía.";
-      list.appendChild(empty);
-    }
-  }
+      if (currentPath) {
+        const back = document.createElement("div");
+        back.className = "file-item";
 
-  function goUp() {
-    if (!currentPath) return;
+        const backButton = document.createElement("button");
+        backButton.textContent = "⬆ Volver";
+        backButton.className = "secondary";
+        backButton.onclick = () => {
+          const parts = currentPath.split("/");
+          parts.pop();
+          navigateTo(parts.join("/"));
+        };
 
-    var parts = currentPath.split("/");
-    parts.pop();
-    browse(parts.join("/"));
-  }
-
-  function openFile(file) {
-    currentFile = file;
-    status("Abriendo " + file.name + "…");
-
-    request(repoUrl(
-      "/contents/" + encodePath(file.path) +
-      "?ref=" + encodeURIComponent(currentBranch)
-    )).then(function (data) {
-      if (data.encoding !== "base64" || !data.content) {
-        throw new Error(
-          "GitHub no devolvió contenido editable para este archivo."
-        );
+        back.appendChild(backButton);
+        elements.files.appendChild(back);
       }
 
-      var text = base64ToText(data.content);
+      if (!files.length) {
+        elements.files.innerHTML =
+          '<div class="empty">Esta carpeta está vacía.</div>';
+        return;
+      }
 
-      $("editorPath").textContent = data.path;
-      $("fileContent").value = text;
-      $("commitMessage").value = "Actualizar " + file.name;
-      $("editor").hidden = false;
-      $("deleteBtn").hidden = false;
-      $("saveBtn").disabled = false;
+      files.forEach(file => {
+        const item = document.createElement("div");
+        item.className = "file-item";
 
-      status("Archivo abierto.");
-    }).catch(function (error) {
-      currentFile = null;
-      status(
-        "No se pudo editar el archivo: " + error.message +
-        ". Los archivos binarios no se pueden editar como texto."
-      );
+        const name = document.createElement("div");
+        name.className = "file-name";
+
+        const title = document.createElement("strong");
+        title.textContent =
+          (file.type === "dir" ? "📁 " : "📄 ") + file.name;
+
+        const detail = document.createElement("small");
+        detail.textContent = file.type === "dir"
+          ? "Carpeta"
+          : formatSize(file.size);
+
+        name.append(title, detail);
+
+        const actions = document.createElement("div");
+        actions.className = "file-actions";
+
+        if (file.type === "dir") {
+          const enter = document.createElement("button");
+          enter.textContent = "Abrir";
+          enter.onclick = () =>
+            navigateTo(currentPath
+              ? currentPath + "/" + file.name
+              : file.name);
+          actions.appendChild(enter);
+        } else {
+          const download = document.createElement("button");
+          download.textContent = "↓";
+          download.title = "Descargar";
+          download.onclick = () => downloadFile(file);
+
+          const edit = document.createElement("button");
+          edit.textContent = "✎";
+          edit.title = "Editar texto";
+          edit.onclick = () => editFile(file);
+
+          actions.append(download, edit);
+        }
+
+        const remove = document.createElement("button");
+        remove.textContent = "🗑";
+        remove.title = "Eliminar";
+        remove.onclick = () => deleteFile(file);
+
+        actions.appendChild(remove);
+        item.append(name, actions);
+        elements.files.appendChild(item);
+      });
+
+    } catch (error) {
+      elements.files.innerHTML =
+        '<div class="empty">No se pudieron cargar los archivos.</div>';
+
+      notify("Error: " + error.message, "error");
+    }
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return "0 bytes";
+
+    const units = ["B", "KB", "MB", "GB"];
+    const index = Math.min(
+      Math.floor(Math.log(bytes) / Math.log(1024)),
+      3
+    );
+
+    return (bytes / Math.pow(1024, index)).toFixed(2) +
+      " " + units[index];
+  }
+
+  function readAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const result = reader.result;
+        resolve(result.split(",")[1]);
+      };
+
+      reader.onerror = () =>
+        reject(new Error("No se pudo leer " + file.name));
+
+      reader.readAsDataURL(file);
     });
   }
 
-  function createFile() {
-    if (!currentRepo) return;
+  async function getExistingFile(path) {
+    try {
+      const result = await request(
+        contentsUrl(path) +
+        "?ref=" + encodeURIComponent(currentBranch)
+      );
 
-    var name = prompt(
-      "Nombre del archivo. También puedes indicar carpeta/archivo.ext:"
-    );
+      return result.sha;
 
-    if (!name) return;
-
-    name = name.trim().replace(/^\/+/, "");
-
-    if (!name || name.split("/").some(function (part) {
-      return !part || part === "." || part === "..";
-    })) {
-      status("Nombre de archivo no válido.");
-      return;
+    } catch (error) {
+      if (error.message.includes("404") ||
+          error.message.toLowerCase().includes("not found")) {
+        return null;
+      }
+      throw error;
     }
-
-    var path = currentPath ? currentPath + "/" + name : name;
-
-    currentFile = { path: path, sha: null };
-
-    $("editorPath").textContent = path;
-    $("fileContent").value = "";
-    $("commitMessage").value = "Crear " + name.split("/").pop();
-    $("editor").hidden = false;
-    $("deleteBtn").hidden = true;
-    $("saveBtn").disabled = false;
-    $("fileContent").focus();
   }
 
-  function saveFile() {
-    if (!currentRepo || !currentFile) return;
-
-    var content = textToBase64($("fileContent").value);
-    var message = $("commitMessage").value.trim();
-
-    if (!message) {
-      status("Escribe un mensaje para el commit.");
-      return;
-    }
-
-    var file = currentFile;
-    var path = file.path;
-
-    $("saveBtn").disabled = true;
-    status("Guardando cambios…");
-
-    var payload = {
+  async function saveFile(path, content, sha, message) {
+    const body = {
       message: message,
       content: content,
       branch: currentBranch
     };
 
-    if (file.sha) payload.sha = file.sha;
+    if (sha) body.sha = sha;
 
-    request(repoUrl("/contents/" + encodePath(path)), {
+    return request(contentsUrl(path), {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(function () {
-      status("Commit guardado correctamente.");
-      currentFile = null;
-      $("editor").hidden = true;
-      return browse(currentPath);
-    }).catch(function (error) {
-      status("No se pudo guardar: " + error.message);
-    }).finally(function () {
-      $("saveBtn").disabled = false;
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
     });
   }
 
-  function deleteFile() {
-    if (!currentRepo || !currentFile || !currentFile.sha) return;
+  function displaySelectedFiles() {
+    elements.selected.replaceChildren();
 
-    var file = currentFile;
+    selectedFiles.forEach((file, index) => {
+      const item = document.createElement("div");
+      item.className = "selected-item";
 
-    if (!confirm(
-      "¿Eliminar " + file.path +
-      " del repositorio? Se creará un commit."
-    )) return;
+      const text = document.createElement("span");
+      text.textContent = file.name + " · " + formatSize(file.size);
 
-    $("deleteBtn").disabled = true;
-    status("Eliminando archivo…");
+      const remove = document.createElement("button");
+      remove.textContent = " ✕";
+      remove.className = "danger-outline";
+      remove.onclick = () => {
+        selectedFiles.splice(index, 1);
+        displaySelectedFiles();
+      };
 
-    request(repoUrl("/contents/" + encodePath(file.path)), {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: "Eliminar " + file.path,
-        sha: file.sha,
-        branch: currentBranch
-      })
-    }).then(function () {
-      status("Archivo eliminado.");
-      currentFile = null;
-      $("editor").hidden = true;
-      return browse(currentPath);
-    }).catch(function (error) {
-      status("No se pudo eliminar: " + error.message);
-    }).finally(function () {
-      $("deleteBtn").disabled = false;
+      item.append(text, remove);
+      elements.selected.appendChild(item);
     });
+
+    elements.upload.disabled = !selectedFiles.length || busy;
   }
 
-  function uploadFiles(fileList) {
-    if (!currentRepo || !fileList.length) return;
+  async function uploadFiles() {
+    if (!selectedFiles.length || busy) return;
 
-    var files = Array.prototype.slice.call(fileList);
-    var index = 0;
-    var uploaded = 0;
+    const files = selectedFiles.slice();
+    const overwrite = new Map();
 
-    function uploadNext() {
-      if (index >= files.length) {
-        status("Subida completada: " + uploaded + " archivo(s).");
-        return browse(currentPath);
+    try {
+      setBusy(true);
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        if (file.size > 25 * 1024 * 1024) {
+          throw new Error(
+            file.name + " supera el límite recomendado de 25 MB."
+          );
+        }
+
+        const path = currentPath
+          ? currentPath + "/" + file.name
+          : file.name;
+
+        const existingSha = await getExistingFile(path);
+
+        if (existingSha) {
+          if (!overwrite.has(path)) {
+            const accepted = confirm(
+              "El archivo " + file.name +
+              " ya existe. ¿Quieres sobrescribirlo?"
+            );
+
+            if (!accepted) {
+              notify("Se omitió " + file.name, "error");
+              continue;
+            }
+
+            overwrite.set(path, true);
+          }
+        }
+
+        notify(
+          "Subiendo " + (i + 1) + " de " + files.length +
+          ": " + file.name
+        );
+
+        const base64 = await readAsBase64(file);
+
+        await saveFile(
+          path,
+          base64,
+          existingSha,
+          (existingSha ? "Actualizar " : "Subir ") + file.name
+        );
       }
 
-      var file = files[index++];
-      var path = currentPath ? currentPath + "/" + file.name : file.name;
+      selectedFiles = [];
+      displaySelectedFiles();
+      elements.fileInput.value = "";
 
-      status("Subiendo " + index + "/" + files.length + ": " + file.name);
+      await loadFiles();
 
-      return file.arrayBuffer().then(function (buffer) {
-        var content = base64FromBytes(new Uint8Array(buffer));
+      notify("Proceso de subida finalizado.", "success-message");
 
-        return request(repoUrl("/contents/" + encodePath(path)), {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: "Subir " + file.name,
-            content: content,
-            branch: currentBranch
-          })
-        });
-      }).then(function () {
-        uploaded++;
-        return uploadNext();
-      }).catch(function (error) {
-        status(
-          "Error al subir " + file.name + ": " + error.message +
-          ". Se subieron " + uploaded + " de " + files.length +
-          " archivos; revisa el repositorio antes de reintentar."
-        );
-      });
+    } catch (error) {
+      notify("Error al subir: " + error.message, "error");
+    } finally {
+      setBusy(false);
+      displaySelectedFiles();
+    }
+  }
+
+  async function createFolder() {
+    const name = $("folderName").value.trim();
+
+    if (!name || name.includes("/") ||
+        name === "." || name === "..") {
+      notify("Introduce un nombre de carpeta válido.", "error");
+      return;
     }
 
-    uploadNext();
+    const path = currentPath
+      ? currentPath + "/" + name + "/.gitkeep"
+      : name + "/.gitkeep";
+
+    try {
+      const existing = await getExistingFile(path);
+
+      if (existing) {
+        notify("La carpeta ya existe.", "error");
+        return;
+      }
+
+      await saveFile(
+        path,
+        "Cg==",
+        null,
+        "Crear carpeta " + name
+      );
+
+      $("folderName").value = "";
+      await loadFiles();
+
+      notify("Carpeta creada correctamente.", "success-message");
+
+    } catch (error) {
+      notify("Error creando carpeta: " + error.message, "error");
+    }
   }
 
-  $("loginBtn").addEventListener("click", login);
+  async function downloadFile(file) {
+    try {
+      const data = await request(
+        contentsUrl(file.path) +
+        "?ref=" + encodeURIComponent(currentBranch)
+      );
 
-  $("token").addEventListener("keydown", function (event) {
-    if (event.key === "Enter") login();
-  });
+      if (data.download_url) {
+        const link = document.createElement("a");
+        link.href = data.download_url;
+        link.download = file.name;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.click();
+        return;
+      }
 
-  $("repoSearch").addEventListener("input", renderRepositories);
+      throw new Error("No hay enlace de descarga disponible.");
 
-  $("refreshBtn").addEventListener("click", function () {
-    loadRepositories().catch(function (error) {
-      status("Error al actualizar: " + error.message);
-    });
-
-    if (currentRepo) browse(currentPath);
-  });
-
-  $("logoutBtn").addEventListener("click", showLogin);
-  $("upBtn").addEventListener("click", goUp);
-  $("newBtn").addEventListener("click", createFile);
-
-  $("uploadBtn").addEventListener("click", function () {
-    $("filePicker").click();
-  });
-
-  $("filePicker").addEventListener("change", function () {
-    uploadFiles($("filePicker").files);
-    $("filePicker").value = "";
-  });
-
-  $("saveBtn").addEventListener("click", saveFile);
-  $("deleteBtn").addEventListener("click", deleteFile);
-
-  $("closeEditorBtn").addEventListener("click", function () {
-    currentFile = null;
-    $("editor").hidden = true;
-  });
-
-  if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("./sw.js").catch(function () {});
-    });
+    } catch (error) {
+      notify("Error descargando: " + error.message, "error");
+    }
   }
+
+  async function deleteFile(file) {
+    if (!confirm("¿Eliminar definitivamente " + file.name + "?")) {
+      return;
+    }
+
+    try {
+      await request(contentsUrl(file.path), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: "Eliminar " + file.name,
+          sha: file.sha,
+          branch: currentBranch
+        })
+      });
+
+      await loadFiles();
+      notify("Archivo eliminado.", "success-message");
+
+    } catch (error) {
+      notify("Error eliminando: " + error.message, "error");
+    }
+  }
+
+  async function editFile(file) {
+    try {
+      const data = await request(
+        contentsUrl(file.path) +
+        "?ref=" + encodeURIComponent(currentBranch)
+      );
+
+      if (data.encoding !== "base64" || !data.content) {
+        throw new Error("Formato de archivo no compatible con el editor.");
+      }
+
+      const binary = atob(data.content.replace(/\s/g, ""));
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+      const content = new TextDecoder("utf-8", {
+        fatal: true
+      }).decode(bytes);
+
+      if (content.includes("\u0000")) {
+        throw new Error("Este archivo parece ser binario.");
+      }
+
+      editingFile = {
+        path: file.path,
+        sha: data.sha
+      };
+
+      $("editorFilename").textContent = file.path;
+      elements.editorContent.value = content;
+      elements.editor.hidden = false;
+
+      elements.editor.scrollIntoView({
+        behavior: "smooth"
+      });
+
+    } catch (error) {
+      notify("No se puede editar: " + error.message, "error");
+    }
+  }
+
+  async function saveEditor() {
+    if (!editingFile) return;
+
+    try {
+      const bytes = new TextEncoder().encode(
+        elements.editorContent.value
+      );
+
+      let binary = "";
+      const chunkSize = 8192;
+
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(
+          ...bytes.subarray(i, i + chunkSize)
+        );
+      }
+
+      const base64 = btoa(binary);
+
+      await saveFile(
+        editingFile.path,
+        base64,
+        editingFile.sha,
+        "Editar " + editingFile.path.split("/").pop()
+      );
+
+      elements.editor.hidden = true;
+      editingFile = null;
+
+      await loadFiles();
+
+      notify("Cambios guardados correctamente.", "success-message");
+
+    } catch (error) {
+      notify("Error guardando: " + error.message, "error");
+    }
+  }
+
+  function logout() {
+    if (!confirm("¿Desconectar MUGH de GitHub?")) return;
+
+    token = "";
+    user = null;
+    currentRepo = null;
+
+    sessionStorage.removeItem("mugh_token");
+
+    location.reload();
+  }
+
+  // Eventos
+
+  elements.connect.addEventListener("click", connect);
+
+  $("logoutBtn").addEventListener("click", logout);
+
+  $("refreshReposBtn").addEventListener("click", async () => {
+    try {
+      await loadRepositories();
+    } catch (error) {
+      notify(error.message, "error");
+    }
+  });
+
+  elements.repos.addEventListener("change", selectRepository);
+  elements.open.addEventListener("click", openRepository);
+
+  $("refreshFilesBtn").addEventListener("click", loadFiles);
+
+  $("selectFilesBtn").addEventListener("click", () => {
+    elements.fileInput.click();
+  });
+
+  elements.fileInput.addEventListener("change", event => {
+    const incoming = Array.from(event.target.files || []);
+
+    incoming.forEach(file => {
+      if (!selectedFiles.some(item =>
+        item.name === file.name &&
+        item.size === file.size &&
+        item.lastModified === file.lastModified
+      )) {
+        selectedFiles.push(file);
+      }
+    });
+
+    displaySelectedFiles();
+  });
+
+  elements.upload.addEventListener("click", uploadFiles);
+
+  $("createFolderBtn").addEventListener("click", createFolder);
+
+  $("saveEditorBtn").addEventListener("click", saveEditor);
+
+  $("closeEditorBtn").addEventListener("click", () => {
+    elements.editor.hidden = true;
+    editingFile = null;
+  });
+
+  $("settingsBtn").addEventListener("click", () => {
+    alert(
+      "MUGH\n\n" +
+      "GitHub Mobile Manager\n" +
+      "Versión 1.0\n\n" +
+      "La conexión utiliza la API oficial de GitHub."
+    );
+  });
+
+  // Recuperar sesión activa
+
+  if (token) {
+    elements.token.value = token;
+    connect();
+  }
+
 })();
+      
